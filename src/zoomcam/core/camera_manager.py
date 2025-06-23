@@ -120,10 +120,25 @@ class CameraManager:
                 cap.release()
 
         # Add configured RTSP cameras
+        if not isinstance(self.config, dict):
+            logging.warning(f"Expected camera config to be a dict, got {type(self.config).__name__}")
+            self.config = {}
+            
         for camera_id, camera_config in self.config.items():
-            if camera_config.get("enabled", True):
-                source = camera_config["source"]
-                if source.startswith("rtsp://"):
+            if not isinstance(camera_config, dict):
+                logging.warning(f"Skipping invalid camera config for {camera_id}: expected dict, got {type(camera_config).__name__}")
+                continue
+                
+            try:
+                if not camera_config.get("enabled", True):
+                    continue
+                    
+                source = camera_config.get("source")
+                if not source:
+                    logging.warning(f"Skipping camera {camera_id}: missing 'source' field")
+                    continue
+                    
+                if isinstance(source, str) and source.startswith("rtsp://"):
                     # Test RTSP connection
                     resolution = await self._test_rtsp_camera(source)
                     if resolution:
@@ -134,6 +149,8 @@ class CameraManager:
                             "type": "rtsp",
                         }
                         logging.info(f"Detected RTSP camera {camera_id}: {resolution}")
+            except Exception as e:
+                logging.error(f"Error processing camera {camera_id}: {e}", exc_info=True)
 
         # Update auto-config with detected cameras
         if self.auto_config:
@@ -158,18 +175,31 @@ class CameraManager:
 
     async def _setup_cameras(self) -> None:
         """Setup cameras based on configuration and detection."""
+        if not isinstance(self.config, dict):
+            logging.error(f"Invalid camera configuration: expected dict, got {type(self.config)}")
+            return
+            
         for camera_id, camera_config in self.config.items():
+            if not isinstance(camera_config, dict):
+                logging.error(f"Invalid configuration for camera {camera_id}: expected dict, got {type(camera_config)}")
+                continue
+                
             if not camera_config.get("enabled", True):
+                logging.debug(f"Skipping disabled camera: {camera_id}")
                 continue
 
             try:
                 # Get camera info from detection or config
-                if camera_id in self.detected_cameras:
+                if hasattr(self, 'detected_cameras') and camera_id in self.detected_cameras:
                     detected = self.detected_cameras[camera_id]
-                    source = detected["source"]
-                    resolution = detected["resolution"]
+                    source = detected.get("source")
+                    resolution = detected.get("resolution", (1920, 1080))
                 else:
-                    source = camera_config["source"]
+                    source = camera_config.get("source")
+                    if not source:
+                        logging.error(f"Missing required 'source' field for camera {camera_id}")
+                        continue
+                        
                     resolution = self._parse_resolution(
                         camera_config.get("resolution", "auto")
                     )

@@ -69,29 +69,35 @@ class ZoomCamFormatter(logging.Formatter):
 
     def format(self, record: logging.LogRecord) -> str:
         # Create a copy of the record to avoid modifying the original
+        # Required parameters for LogRecord:
+        # name, level, pathname, lineno, msg, args, exc_info, func=None, sinfo=None
         record_copy = logging.LogRecord(
             name=record.name,
-            level=record.levelno,
+            level=record.levelno,  # Convert levelno to level
             pathname=record.pathname,
             lineno=record.lineno,
             msg=record.msg,
             args=record.args,
             exc_info=record.exc_info,
-            func=record.funcName
+            func=record.funcName,
+            sinfo=None
         )
         
         # Copy over additional attributes
         for key, value in record.__dict__.items():
-            if key not in ('name', 'levelno', 'pathname', 'lineno', 'msg', 'args', 'exc_info', 'funcName'):
+            if not hasattr(record_copy, key) and not key.startswith('_'):
                 setattr(record_copy, key, value)
         
-        # Add default values for missing attributes
-        if not hasattr(record_copy, 'camera_id'):
+        # Only set default values if they don't exist
+        if not hasattr(record_copy, 'camera_id') or getattr(record_copy, 'camera_id', None) is None:
             record_copy.camera_id = 'system'
-        if not hasattr(record_copy, 'component'):
-            record_copy.component = record_copy.name
-        if not hasattr(record_copy, 'operation'):
-            record_copy.operation = 'general'
+            
+        if not hasattr(record_copy, 'component') or getattr(record_copy, 'component', None) is None:
+            component = getattr(record, 'component', None)
+            record_copy.component = component if component is not None else record.name
+            
+        if not hasattr(record_copy, 'operation') or getattr(record_copy, 'operation', None) is None:
+            record_copy.operation = getattr(record, 'operation', 'general')
 
         # Add performance data if available
         if self.include_performance and PSUTIL_AVAILABLE:
@@ -309,18 +315,29 @@ class ZoomCamLogger:
 
     def _log_with_context(self, level: int, message: str, **kwargs):
         """Log with context information."""
-        extra = {
-            "component": self.context.component,
-            "camera_id": self.context.camera_id,
-            "operation": self.context.operation,
-            **kwargs,
-        }
+        # Create a copy of kwargs to avoid modifying the original
+        extra = {}
+        
+        # Only add context fields if they're not already in kwargs
+        if 'component' not in kwargs:
+            extra['component'] = self.context.component
+        if 'camera_id' not in kwargs and self.context.camera_id is not None:
+            extra['camera_id'] = self.context.camera_id
+        if 'operation' not in kwargs and self.context.operation is not None:
+            extra['operation'] = self.context.operation
+            
+        # Add any remaining kwargs that aren't None
+        extra.update({k: v for k, v in kwargs.items() if v is not None})
 
         # Add performance data if available
         if self.context.performance_data:
             extra.update(self.context.performance_data)
 
-        self.logger.log(level, message, extra=extra)
+        try:
+            self.logger.log(level, message, extra=extra)
+        except Exception as e:
+            # Fallback to basic logging if there's an error with the extra fields
+            self.logger.log(level, f"{message} [Error adding context: {e}]")
 
     def debug(self, message: str, **kwargs):
         """Debug level logging."""
@@ -442,12 +459,30 @@ class LogManager:
         if isinstance(level, str):
             level = getattr(logging, level.upper())
 
-        # Clear existing handlers
+        # Clear existing handlers and reset logging
+        logging.basicConfig(handlers=[])
         root_logger = logging.getLogger()
         for handler in root_logger.handlers[:]:
+            handler.close()
             root_logger.removeHandler(handler)
 
         self.handlers.clear()
+        
+        # Set up a custom log record factory to handle additional fields
+        old_factory = logging.getLogRecordFactory()
+        
+        def record_factory(*args, **kwargs):
+            record = old_factory(*args, **kwargs)
+            # Ensure our custom fields exist
+            if not hasattr(record, 'camera_id'):
+                record.camera_id = 'system'
+            if not hasattr(record, 'component'):
+                record.component = record.name
+            if not hasattr(record, 'operation'):
+                record.operation = 'general'
+            return record
+            
+        logging.setLogRecordFactory(record_factory)
 
         # Create formatters
         console_formatter = ZoomCamFormatter(

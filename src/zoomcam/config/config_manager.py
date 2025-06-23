@@ -240,20 +240,30 @@ class ConfigManager:
                     try:
                         validation_errors = self.validator.validate(merged_config)
                         if validation_errors:
-                            error_messages = [
-                                f"{error.field}: {error.message}"
-                                for error in validation_errors
-                            ]
+                            error_messages = []
                             self.logger.error(
-                                f"Configuration validation failed with {len(validation_errors)} errors"
+                                f"Configuration validation failed with {len(validation_errors)} errors:"
                             )
                             for error in validation_errors:
-                                self.logger.error(f"  - {error.field}: {error.message}")
+                                error_msg = f"  - {error.field}: {error.message}"
+                                if error.suggestion:
+                                    error_msg += f" (suggestion: {error.suggestion})"
+                                self.logger.error(error_msg)
+                                error_messages.append(error_msg)
+                            
+                            # Log the full configuration that failed validation
+                            self.logger.debug("Configuration that failed validation:")
+                            for line in yaml.dump(merged_config, default_flow_style=False).split('\n'):
+                                self.logger.debug(f"  {line}")
+                                
                             raise ConfigValidationError(
-                                field="multiple",
-                                value="configuration",
-                                expected="valid configuration according to schema",
-                                technical_details={"validation_errors": error_messages},
+                                field=validation_errors[0].field if validation_errors else "unknown",
+                                value=validation_errors[0].value if validation_errors else "configuration",
+                                expected=validation_errors[0].message if validation_errors else "valid configuration",
+                                technical_details={
+                                    "validation_errors": error_messages,
+                                    "error_count": len(validation_errors)
+                                },
                             )
                         self.logger.debug("Configuration validation passed")
                     except Exception as e:

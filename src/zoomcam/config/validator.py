@@ -414,7 +414,11 @@ class ConfigValidator:
 
     def _validate_percentage(self, value: Any) -> Optional[str]:
         """Validate percentage value (0-100)."""
-        return self._validate_range(value, 0, 100, (float, int))
+        # First try to validate as float, then as int if that fails
+        error = self._validate_range(value, 0, 100, float)
+        if error and isinstance(value, int):
+            error = self._validate_range(value, 0, 100, int)
+        return error
 
     def _validate_choice(self, value: Any, choices: list) -> Optional[str]:
         """Validate that value is one of the specified choices."""
