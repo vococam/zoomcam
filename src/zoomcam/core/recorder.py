@@ -7,6 +7,8 @@ automatic file management, compression, and storage optimization.
 """
 
 import asyncio
+import json
+import logging
 import queue
 import shutil
 import subprocess
@@ -131,7 +133,6 @@ class CameraRecorder:
         # Performance tracking
         self.frames_recorded = 0
         self.frames_dropped = 0
-        self.recording_sessions: List[RecordingSession] = []
 
         # Callbacks
         self.session_callbacks: List[Callable[[RecordingSession], None]] = []
@@ -489,9 +490,6 @@ class CameraRecorder:
                     # Move temp file to final location
                     await self._finalize_recording()
 
-                # Add to session history
-                self.recording_sessions.append(self.current_session)
-
                 # Notify callbacks
                 for callback in self.session_callbacks:
                     try:
@@ -577,10 +575,8 @@ class CameraRecorder:
         while not self.stop_event.is_set():
             try:
                 # Clean old frames from buffer (keep only last 5 seconds)
-                current_time = datetime.now()
-                cutoff_time = current_time - timedelta(seconds=5)
-
-                # This is simplified - in practice, you'd want a more efficient buffer
+                # Note: This is a simplified implementation
+                # In practice, implement a more efficient buffer management
                 self.stop_event.wait(1.0)  # Check every second
 
             except Exception as e:
@@ -589,7 +585,6 @@ class CameraRecorder:
 
     def add_session_callback(self, callback: Callable[[RecordingSession], None]):
         """Add callback for recording session events."""
-        self.session_callbacks.append(callback)
 
     def get_statistics(self) -> Dict[str, Any]:
         """Get recorder statistics."""
@@ -600,22 +595,6 @@ class CameraRecorder:
             "frames_dropped": self.frames_dropped,
             "drop_rate": self.frames_dropped
             / max(self.frames_recorded + self.frames_dropped, 1),
-            "total_sessions": len(self.recording_sessions),
-            "current_session": {
-                "session_id": self.current_session.session_id
-                if self.current_session
-                else None,
-                "duration": (
-                    (datetime.now() - self.current_session.start_time).total_seconds()
-                    if self.current_session
-                    else 0
-                ),
-                "frames": self.current_session.frame_count
-                if self.current_session
-                else 0,
-            }
-            if self.current_session
-            else None,
         }
 
 
@@ -1010,22 +989,22 @@ class RecordingManager:
             )
 
             for recorder in recorders_to_check:
-                for session in recorder.recording_sessions[-limit:]:
+                for session in recorder.get_statistics():
                     recording_info = {
-                        "session_id": session.session_id,
-                        "camera_id": session.camera_id,
-                        "start_time": session.start_time.isoformat(),
-                        "end_time": session.end_time.isoformat()
-                        if session.end_time
+                        "session_id": session["session_id"],
+                        "camera_id": session["camera_id"],
+                        "start_time": session["start_time"].isoformat(),
+                        "end_time": session["end_time"].isoformat()
+                        if session["end_time"]
                         else None,
-                        "duration_seconds": session.duration_seconds,
-                        "file_size_bytes": session.file_size_bytes,
-                        "frame_count": session.frame_count,
-                        "trigger_reason": session.trigger_reason,
-                        "motion_events_count": len(session.motion_events),
-                        "quality_metrics": session.quality_metrics,
-                        "file_path": str(session.file_path)
-                        if session.file_path
+                        "duration_seconds": session["duration_seconds"],
+                        "file_size_bytes": session["file_size_bytes"],
+                        "frame_count": session["frame_count"],
+                        "trigger_reason": session["trigger_reason"],
+                        "motion_events_count": len(session["motion_events"]),
+                        "quality_metrics": session["quality_metrics"],
+                        "file_path": str(session["file_path"])
+                        if session["file_path"]
                         else None,
                     }
                     recordings.append(recording_info)
@@ -1047,14 +1026,18 @@ class RecordingManager:
             # Find recording session
             session = None
             for recorder in self.recorders.values():
-                for s in recorder.recording_sessions:
-                    if s.session_id == session_id:
+                for s in recorder.get_statistics():
+                    if s["session_id"] == session_id:
                         session = s
                         break
                 if session:
                     break
 
-            if not session or not session.file_path or not session.file_path.exists():
+            if (
+                not session
+                or not session["file_path"]
+                or not session["file_path"].exists()
+            ):
                 raise ValueError(f"Recording session {session_id} not found")
 
             # Create export path
@@ -1067,11 +1050,11 @@ class RecordingManager:
             # Export based on format
             if export_format == "mp4":
                 # Copy original file
-                shutil.copy2(session.file_path, export_path)
+                shutil.copy2(session["file_path"], export_path)
             else:
                 # Use FFmpeg for format conversion
                 await self._convert_recording(
-                    session.file_path, export_path, export_format
+                    session["file_path"], export_path, export_format
                 )
 
             self.logger.info(f"Recording exported: {export_path}")
@@ -1118,9 +1101,9 @@ class RecordingManager:
             # Find and remove session from recorder
             session = None
             for recorder in self.recorders.values():
-                for i, s in enumerate(recorder.recording_sessions):
-                    if s.session_id == session_id:
-                        session = recorder.recording_sessions.pop(i)
+                for i, s in enumerate(recorder.get_statistics()):
+                    if s["session_id"] == session_id:
+                        session = recorder.get_statistics().pop(i)
                         break
                 if session:
                     break
@@ -1129,10 +1112,10 @@ class RecordingManager:
                 raise ValueError(f"Recording session {session_id} not found")
 
             # Delete file
-            if session.file_path and session.file_path.exists():
-                session.file_path.unlink()
-                self.total_storage_used -= session.file_size_bytes
-                self.logger.info(f"Deleted recording: {session.file_path}")
+            if session["file_path"] and session["file_path"].exists():
+                session["file_path"].unlink()
+                self.total_storage_used -= session["file_size_bytes"]
+                self.logger.info(f"Deleted recording: {session['file_path']}")
 
             return True
 
