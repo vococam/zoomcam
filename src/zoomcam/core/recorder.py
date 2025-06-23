@@ -23,7 +23,9 @@ from typing import Any, Callable, Dict, List, Optional, Tuple
 import cv2
 import numpy as np
 
-from zoomcam.utils.helpers import cleanup_old_files, ensure_directory, format_bytes
+from zoomcam.utils.helpers import (
+    cleanup_old_files, ensure_directory, format_bytes
+)
 from zoomcam.utils.logger import get_logger
 
 
@@ -345,28 +347,17 @@ class CameraRecorder:
             ffmpeg_cmd = [
                 "ffmpeg",
                 "-y",  # Overwrite output file
-                "-f",
-                "rawvideo",
-                "-vcodec",
-                "rawvideo",
-                "-pix_fmt",
-                "bgr24",
-                "-s",
-                f"{resolution[0]}x{resolution[1]}",
-                "-r",
-                str(self.config.fps),
-                "-i",
-                "-",  # Input from stdin
-                "-c:v",
-                quality.codec,
-                "-preset",
-                quality.preset,
-                "-crf",
-                quality.crf,
-                "-b:v",
-                quality.bitrate,
-                "-movflags",
-                "+faststart",  # Optimize for streaming
+                "-f", "rawvideo",
+                "-vcodec", "rawvideo",
+                "-pix_fmt", "bgr24",
+                "-s", f"{resolution[0]}x{resolution[1]}",
+                "-r", str(self.config.fps),
+                "-i", "-",  # Input from stdin
+                "-c:v", quality.codec,
+                "-preset", quality.preset,
+                "-crf", quality.crf,
+                "-b:v", quality.bitrate,
+                "-movflags", "+faststart",  # Optimize streaming
                 str(self.temp_file_path),
             ]
 
