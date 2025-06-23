@@ -268,43 +268,43 @@ class CameraRecorder:
             if should_stop:
                 await self._stop_recording()
 
+    @monitor_performance
     async def _start_recording(self, start_time: datetime):
         """Start recording session."""
         try:
-            with performance_context("recorder", "start_recording", global_profiler):
-                self.state = RecordingState.RECORDING
+            self.state = RecordingState.RECORDING
 
-                # Create recording session
-                session_id = (
-                    f"{self.config.camera_id}_{start_time.strftime('%Y%m%d_%H%M%S')}"
-                )
-                self.current_session = RecordingSession(
-                    session_id=session_id,
-                    camera_id=self.config.camera_id,
-                    start_time=start_time,
-                    trigger_reason="motion_detected",
-                )
+            # Create recording session
+            session_id = (
+                f"{self.config.camera_id}_{start_time.strftime('%Y%m%d_%H%M%S')}"
+            )
+            self.current_session = RecordingSession(
+                session_id=session_id,
+                camera_id=self.config.camera_id,
+                start_time=start_time,
+                trigger_reason="motion_detected",
+            )
 
-                # Create output file path
-                filename = f"{session_id}.{self.config.output_format}"
-                self.current_session.file_path = self.output_dir / filename
-                self.temp_file_path = self.output_dir / f"temp_{filename}"
+            # Create output file path
+            filename = f"{session_id}.{self.config.output_format}"
+            self.current_session.file_path = self.output_dir / filename
+            self.temp_file_path = self.output_dir / f"temp_{filename}"
 
-                # Setup video writer or encoder
-                if self.config.quality in [
-                    RecordingQuality.HIGH,
-                    RecordingQuality.ULTRA,
-                ]:
-                    await self._setup_ffmpeg_encoder()
-                else:
-                    await self._setup_opencv_writer()
+            # Setup video writer or encoder
+            if self.config.quality in [
+                RecordingQuality.HIGH,
+                RecordingQuality.ULTRA,
+            ]:
+                await self._setup_ffmpeg_encoder()
+            else:
+                await self._setup_opencv_writer()
 
-                # Write buffered frames (pre-motion)
-                await self._write_buffered_frames()
+            # Write buffered frames (pre-motion)
+            await self._write_buffered_frames()
 
-                self.logger.info(
-                    f"Recording started: {self.current_session.session_id}"
-                )
+            self.logger.info(
+                f"Recording started: {self.current_session.session_id}"
+            )
 
         except Exception as e:
             self.state = RecordingState.ERROR
@@ -449,59 +449,60 @@ class CameraRecorder:
             self.frames_dropped += 1
             self.logger.error(f"Error writing frame: {e}")
 
+    @monitor_performance
     async def _stop_recording(self):
         """Stop current recording session."""
-        if not self.current_session:
+        if self.state != RecordingState.RECORDING:
             return
 
+        self.logger.info("Stopping recording...")
+        self.state = RecordingState.STOPPING
+
         try:
-            with performance_context("recorder", "stop_recording", global_profiler):
-                self.state = RecordingState.STOPPING
+            # Close video writer/encoder
+            if self.video_writer:
+                self.video_writer.release()
+                self.video_writer = None
 
-                # Close video writer/encoder
-                if self.video_writer:
-                    self.video_writer.release()
-                    self.video_writer = None
+            if self.encoder_process:
+                try:
+                    self.encoder_process.stdin.close()
+                    self.encoder_process.wait(timeout=10)
+                except subprocess.TimeoutExpired:
+                    self.encoder_process.kill()
+                    self.encoder_process.wait()
+                self.encoder_process = None
 
-                if self.encoder_process:
-                    try:
-                        self.encoder_process.stdin.close()
-                        self.encoder_process.wait(timeout=10)
-                    except subprocess.TimeoutExpired:
-                        self.encoder_process.kill()
-                        self.encoder_process.wait()
-                    self.encoder_process = None
+            # Finalize session
+            end_time = datetime.now()
+            self.current_session.end_time = end_time
+            self.current_session.duration_seconds = (
+                end_time - self.current_session.start_time
+            ).total_seconds()
 
-                # Finalize session
-                end_time = datetime.now()
-                self.current_session.end_time = end_time
-                self.current_session.duration_seconds = (
-                    end_time - self.current_session.start_time
-                ).total_seconds()
-
-                # Check minimum duration
-                if self.current_session.duration_seconds < self.config.min_duration:
-                    self.logger.info(
-                        f"Recording too short ({self.current_session.duration_seconds:.1f}s), deleting"
-                    )
-                    if self.temp_file_path and self.temp_file_path.exists():
-                        self.temp_file_path.unlink()
-                else:
-                    # Move temp file to final location
-                    await self._finalize_recording()
-
-                # Notify callbacks
-                for callback in self.session_callbacks:
-                    try:
-                        callback(self.current_session)
-                    except Exception as e:
-                        self.logger.error(f"Error in session callback: {e}")
-
+            # Check minimum duration
+            if self.current_session.duration_seconds < self.config.min_duration:
                 self.logger.info(
-                    f"Recording stopped: {self.current_session.session_id}"
+                    f"Recording too short ({self.current_session.duration_seconds:.1f}s), deleting"
                 )
-                self.current_session = None
-                self.state = RecordingState.WAITING
+                if self.temp_file_path and self.temp_file_path.exists():
+                    self.temp_file_path.unlink()
+            else:
+                # Move temp file to final location
+                await self._finalize_recording()
+
+            # Notify callbacks
+            for callback in self.session_callbacks:
+                try:
+                    callback(self.current_session)
+                except Exception as e:
+                    self.logger.error(f"Error in session callback: {e}")
+
+            self.logger.info(
+                f"Recording stopped: {self.current_session.session_id}"
+            )
+            self.current_session = None
+            self.state = RecordingState.WAITING
 
         except Exception as e:
             self.state = RecordingState.ERROR
@@ -1217,8 +1218,6 @@ class RecordingManager:
         return health
 
 
-# Utility functions for external use
-@monitor_performance("recorder", "create_test_recording", global_profiler)
 def create_test_recording(output_path: Path, duration: int = 10, fps: int = 30):
     """Create test recording for debugging."""
     try:
