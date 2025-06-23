@@ -37,7 +37,6 @@ RUN apt-get update && apt-get install -y \
     wget \
     # System monitoring
     htop \
-    psutil \
     # Cleanup
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
@@ -50,22 +49,19 @@ RUN update-alternatives --install /usr/bin/python python /usr/bin/python3 1
 # ==================================================
 FROM base as builder
 
+WORKDIR /app
+
+# Ensure Poetry creates the venv inside the project directory
+ENV POETRY_VIRTUALENVS_IN_PROJECT=true
+
 # Install Poetry
 RUN pip3 install poetry
 
-# Set Poetry configuration
-ENV POETRY_NO_INTERACTION=1 \
-    POETRY_VENV_IN_PROJECT=1 \
-    POETRY_CACHE_DIR=/tmp/poetry_cache
-
-# Create app directory
-WORKDIR /app
-
-# Copy Poetry files
+# Copy only dependency files first for better caching
 COPY pyproject.toml poetry.lock ./
 
-# Install dependencies
-RUN poetry install --only=main --no-root && rm -rf $POETRY_CACHE_DIR
+# Install dependencies (no dev, no root)
+RUN poetry install --only=main --no-root && rm -rf /tmp/poetry_cache
 
 # ==================================================
 # Stage 3: Production image

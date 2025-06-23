@@ -1,3 +1,5 @@
+version: '3.8'
+
 services:
   # ==================================================
   # ZoomCam Main Application
@@ -80,6 +82,7 @@ services:
     # Dependencies
     depends_on:
       - redis
+      - nginx
 
   # ==================================================
   # Redis for caching and session storage
@@ -151,6 +154,93 @@ services:
     depends_on:
       - zoomcam
 
+  # ==================================================
+  # InfluxDB for metrics (optional)
+  # ==================================================
+  influxdb:
+    image: influxdb:2.7-alpine
+    container_name: zoomcam-influxdb
+    restart: unless-stopped
+    profiles:
+      - monitoring
+
+    # Environment
+    environment:
+      - DOCKER_INFLUXDB_INIT_MODE=setup
+      - DOCKER_INFLUXDB_INIT_USERNAME=admin
+      - DOCKER_INFLUXDB_INIT_PASSWORD=zoomcam123
+      - DOCKER_INFLUXDB_INIT_ORG=zoomcam
+      - DOCKER_INFLUXDB_INIT_BUCKET=metrics
+
+    # Volumes
+    volumes:
+      - influxdb-data:/var/lib/influxdb2
+      - influxdb-config:/etc/influxdb2
+
+    # Ports
+    ports:
+      - "8086:8086"
+
+    # Network
+    networks:
+      - zoomcam-network
+
+  # ==================================================
+  # Grafana for dashboards (optional)
+  # ==================================================
+  grafana:
+    image: grafana/grafana:latest
+    container_name: zoomcam-grafana
+    restart: unless-stopped
+    profiles:
+      - monitoring
+
+    # Environment
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=zoomcam123
+      - GF_INSTALL_PLUGINS=grafana-clock-panel,grafana-simple-json-datasource
+
+    # Volumes
+    volumes:
+      - grafana-data:/var/lib/grafana
+      - ./docker/grafana/dashboards:/etc/grafana/provisioning/dashboards:ro
+      - ./docker/grafana/datasources:/etc/grafana/provisioning/datasources:ro
+
+    # Ports
+    ports:
+      - "3000:3000"
+
+    # Network
+    networks:
+      - zoomcam-network
+
+    # Dependencies
+    depends_on:
+      - influxdb
+
+  # ==================================================
+  # Portainer for container management (optional)
+  # ==================================================
+  portainer:
+    image: portainer/portainer-ce:latest
+    container_name: zoomcam-portainer
+    restart: unless-stopped
+    profiles:
+      - management
+
+    # Volumes
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - portainer-data:/data
+
+    # Ports
+    ports:
+      - "9000:9000"
+
+    # Network
+    networks:
+      - zoomcam-network
+
 # ==================================================
 # Named Volumes
 # ==================================================
@@ -197,3 +287,6 @@ volumes:
 networks:
   zoomcam-network:
     driver: bridge
+    ipam:
+      config:
+        - subnet: 172.20.0.0/16

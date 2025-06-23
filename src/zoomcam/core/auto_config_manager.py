@@ -25,6 +25,7 @@ from zoomcam.utils.exceptions import AutoConfigError
 @dataclass
 class PerformanceMetrics:
     """System performance metrics."""
+
     timestamp: datetime
     cpu_usage: float
     memory_usage: float
@@ -39,6 +40,7 @@ class PerformanceMetrics:
 @dataclass
 class CameraMetrics:
     """Camera-specific metrics."""
+
     camera_id: str
     resolution: Tuple[int, int]
     fps: float
@@ -51,6 +53,7 @@ class CameraMetrics:
 @dataclass
 class OptimizationSuggestion:
     """Configuration optimization suggestion."""
+
     parameter: str
     current_value: Any
     suggested_value: Any
@@ -72,7 +75,9 @@ class AutoConfigManager:
     - Automatic configuration updates
     """
 
-    def __init__(self, config_manager: ConfigManager, git_logger: Optional[GitLogger] = None):
+    def __init__(
+        self, config_manager: ConfigManager, git_logger: Optional[GitLogger] = None
+    ):
         self.config_manager = config_manager
         self.git_logger = git_logger
 
@@ -108,7 +113,7 @@ class AutoConfigManager:
         """Load existing auto-configuration."""
         try:
             if self.auto_config_path.exists():
-                with open(self.auto_config_path, 'r') as f:
+                with open(self.auto_config_path, "r") as f:
                     self.auto_config = yaml.safe_load(f) or {}
             else:
                 self.auto_config = self._get_default_auto_config()
@@ -125,14 +130,14 @@ class AutoConfigManager:
                     "actual_resolution": "1920x1080",
                     "refresh_rate": 60,
                     "color_depth": 24,
-                    "aspect_ratio": "16:9"
+                    "aspect_ratio": "16:9",
                 },
                 "performance": {
                     "current_cpu_usage": 0.0,
                     "memory_usage": 0,
                     "gpu_acceleration": False,
-                    "last_optimization": None
-                }
+                    "last_optimization": None,
+                },
             },
             "cameras": {},
             "layout": {
@@ -140,20 +145,20 @@ class AutoConfigManager:
                 "active_fragments": 0,
                 "last_recalculation": None,
                 "css_grid_state": "",
-                "efficiency_score": 0.0
+                "efficiency_score": 0.0,
             },
             "optimization": {
                 "suggestions": [],
                 "last_applied": [],
-                "performance_trend": "stable"
-            }
+                "performance_trend": "stable",
+            },
         }
 
     def _save_auto_config(self) -> None:
         """Save auto-configuration to file."""
         try:
             self.auto_config_path.parent.mkdir(parents=True, exist_ok=True)
-            with open(self.auto_config_path, 'w') as f:
+            with open(self.auto_config_path, "w") as f:
                 yaml.dump(self.auto_config, f, default_flow_style=False, indent=2)
         except Exception as e:
             logging.error(f"Failed to save auto-config: {e}")
@@ -229,8 +234,13 @@ class AutoConfigManager:
 
             # Camera metrics
             camera_count = len(self.camera_metrics)
-            active_cameras = len([c for c in self.camera_metrics.values()
-                                  if (datetime.now() - c.last_activity).total_seconds() < 30])
+            active_cameras = len(
+                [
+                    c
+                    for c in self.camera_metrics.values()
+                    if (datetime.now() - c.last_activity).total_seconds() < 30
+                ]
+            )
 
             return PerformanceMetrics(
                 timestamp=datetime.now(),
@@ -241,16 +251,21 @@ class AutoConfigManager:
                 fps_target=fps_target,
                 processing_time_ms=processing_time_ms,
                 camera_count=camera_count,
-                active_cameras=active_cameras
+                active_cameras=active_cameras,
             )
 
         except Exception as e:
             logging.error(f"Failed to collect performance metrics: {e}")
             return PerformanceMetrics(
                 timestamp=datetime.now(),
-                cpu_usage=0.0, memory_usage=0.0, memory_available_mb=0,
-                fps_actual=0.0, fps_target=30.0, processing_time_ms=0.0,
-                camera_count=0, active_cameras=0
+                cpu_usage=0.0,
+                memory_usage=0.0,
+                memory_available_mb=0,
+                fps_actual=0.0,
+                fps_target=30.0,
+                processing_time_ms=0.0,
+                camera_count=0,
+                active_cameras=0,
             )
 
     def _get_current_fps(self) -> float:
@@ -273,14 +288,16 @@ class AutoConfigManager:
 
     def _update_auto_config_performance(self, metrics: PerformanceMetrics) -> None:
         """Update auto-config with performance metrics."""
-        self.auto_config["system"]["performance"].update({
-            "current_cpu_usage": metrics.cpu_usage,
-            "memory_usage": metrics.memory_usage,
-            "memory_available_mb": metrics.memory_available_mb,
-            "fps_actual": metrics.fps_actual,
-            "processing_time_ms": metrics.processing_time_ms,
-            "last_update": metrics.timestamp.isoformat()
-        })
+        self.auto_config["system"]["performance"].update(
+            {
+                "current_cpu_usage": metrics.cpu_usage,
+                "memory_usage": metrics.memory_usage,
+                "memory_available_mb": metrics.memory_available_mb,
+                "fps_actual": metrics.fps_actual,
+                "processing_time_ms": metrics.processing_time_ms,
+                "last_update": metrics.timestamp.isoformat(),
+            }
+        )
 
         # Save periodically
         if len(self.performance_history) % 12 == 0:  # Every minute
@@ -292,46 +309,60 @@ class AutoConfigManager:
 
         # CPU usage alerts
         if metrics.cpu_usage > self.cpu_critical_threshold:
-            alerts.append({
-                "type": "cpu_critical",
-                "message": f"Critical CPU usage: {metrics.cpu_usage:.1f}%",
-                "severity": "critical",
-                "suggestions": ["Reduce camera count", "Lower resolution", "Disable recording"]
-            })
+            alerts.append(
+                {
+                    "type": "cpu_critical",
+                    "message": f"Critical CPU usage: {metrics.cpu_usage:.1f}%",
+                    "severity": "critical",
+                    "suggestions": [
+                        "Reduce camera count",
+                        "Lower resolution",
+                        "Disable recording",
+                    ],
+                }
+            )
         elif metrics.cpu_usage > self.cpu_warning_threshold:
-            alerts.append({
-                "type": "cpu_warning",
-                "message": f"High CPU usage: {metrics.cpu_usage:.1f}%",
-                "severity": "warning",
-                "suggestions": ["Consider reducing quality", "Check camera efficiency"]
-            })
+            alerts.append(
+                {
+                    "type": "cpu_warning",
+                    "message": f"High CPU usage: {metrics.cpu_usage:.1f}%",
+                    "severity": "warning",
+                    "suggestions": [
+                        "Consider reducing quality",
+                        "Check camera efficiency",
+                    ],
+                }
+            )
 
         # Memory usage alerts
         if metrics.memory_usage > self.memory_warning_threshold:
-            alerts.append({
-                "type": "memory_warning",
-                "message": f"High memory usage: {metrics.memory_usage:.1f}%",
-                "severity": "warning",
-                "suggestions": ["Reduce buffer sizes", "Lower camera resolution"]
-            })
+            alerts.append(
+                {
+                    "type": "memory_warning",
+                    "message": f"High memory usage: {metrics.memory_usage:.1f}%",
+                    "severity": "warning",
+                    "suggestions": ["Reduce buffer sizes", "Lower camera resolution"],
+                }
+            )
 
         # FPS drop alerts
         fps_ratio = metrics.fps_actual / max(metrics.fps_target, 1)
         if fps_ratio < self.fps_drop_threshold:
-            alerts.append({
-                "type": "fps_drop",
-                "message": f"FPS below target: {metrics.fps_actual:.1f}/{metrics.fps_target:.1f}",
-                "severity": "warning",
-                "suggestions": ["Reduce processing load", "Optimize layout"]
-            })
+            alerts.append(
+                {
+                    "type": "fps_drop",
+                    "message": f"FPS below target: {metrics.fps_actual:.1f}/{metrics.fps_target:.1f}",
+                    "severity": "warning",
+                    "suggestions": ["Reduce processing load", "Optimize layout"],
+                }
+            )
 
         # Log alerts
         for alert in alerts:
             if self.git_logger:
-                await self.git_logger.log_performance_alert({
-                    "alert": alert,
-                    "metrics": asdict(metrics)
-                })
+                await self.git_logger.log_performance_alert(
+                    {"alert": alert, "metrics": asdict(metrics)}
+                )
 
             # Auto-apply critical fixes if enabled
             if alert["severity"] == "critical" and self.auto_adjust_enabled:
@@ -374,7 +405,9 @@ class AutoConfigManager:
 
             # Calculate trends
             cpu_trend = self._calculate_trend([m.cpu_usage for m in recent_metrics])
-            memory_trend = self._calculate_trend([m.memory_usage for m in recent_metrics])
+            memory_trend = self._calculate_trend(
+                [m.memory_usage for m in recent_metrics]
+            )
             fps_trend = self._calculate_trend([m.fps_actual for m in recent_metrics])
 
             # Generate suggestions
@@ -388,13 +421,17 @@ class AutoConfigManager:
             # Memory optimization
             avg_memory = statistics.mean([m.memory_usage for m in recent_metrics])
             if avg_memory > 70:
-                suggestions.extend(self._generate_memory_optimizations(avg_memory, memory_trend))
+                suggestions.extend(
+                    self._generate_memory_optimizations(avg_memory, memory_trend)
+                )
 
             # FPS optimization
             avg_fps = statistics.mean([m.fps_actual for m in recent_metrics])
             target_fps = recent_metrics[-1].fps_target
             if avg_fps < target_fps * 0.9:
-                suggestions.extend(self._generate_fps_optimizations(avg_fps, target_fps))
+                suggestions.extend(
+                    self._generate_fps_optimizations(avg_fps, target_fps)
+                )
 
             # Camera-specific optimizations
             suggestions.extend(self._generate_camera_optimizations())
@@ -427,7 +464,7 @@ class AutoConfigManager:
         sum_xy = sum(x[i] * y[i] for i in range(n))
         sum_x2 = sum(x[i] ** 2 for i in range(n))
 
-        slope = (n * sum_xy - sum_x * sum_y) / (n * sum_x2 - sum_x ** 2)
+        slope = (n * sum_xy - sum_x * sum_y) / (n * sum_x2 - sum_x**2)
 
         if slope > 1:
             return "increasing"
@@ -436,71 +473,87 @@ class AutoConfigManager:
         else:
             return "stable"
 
-    def _generate_cpu_optimizations(self, avg_cpu: float, trend: str) -> List[OptimizationSuggestion]:
+    def _generate_cpu_optimizations(
+        self, avg_cpu: float, trend: str
+    ) -> List[OptimizationSuggestion]:
         """Generate CPU optimization suggestions."""
         suggestions = []
 
         if avg_cpu > 85:
-            suggestions.append(OptimizationSuggestion(
-                parameter="streaming.bitrate",
-                current_value="2M",
-                suggested_value="1M",
-                reason=f"High CPU usage ({avg_cpu:.1f}%) - reduce bitrate",
-                priority=3,
-                impact="Reduced video quality but lower CPU load"
-            ))
+            suggestions.append(
+                OptimizationSuggestion(
+                    parameter="streaming.bitrate",
+                    current_value="2M",
+                    suggested_value="1M",
+                    reason=f"High CPU usage ({avg_cpu:.1f}%) - reduce bitrate",
+                    priority=3,
+                    impact="Reduced video quality but lower CPU load",
+                )
+            )
 
-            suggestions.append(OptimizationSuggestion(
-                parameter="system.display.interpolation.algorithm",
-                current_value="lanczos",
-                suggested_value="linear",
-                reason="CPU overload - use faster interpolation",
-                priority=3,
-                impact="Faster processing but slightly lower image quality"
-            ))
+            suggestions.append(
+                OptimizationSuggestion(
+                    parameter="system.display.interpolation.algorithm",
+                    current_value="lanczos",
+                    suggested_value="linear",
+                    reason="CPU overload - use faster interpolation",
+                    priority=3,
+                    impact="Faster processing but slightly lower image quality",
+                )
+            )
 
         elif avg_cpu > 75 and trend == "increasing":
-            suggestions.append(OptimizationSuggestion(
-                parameter="layout.algorithm",
-                current_value="adaptive_grid",
-                suggested_value="equal_grid",
-                reason="Rising CPU usage - simplify layout calculations",
-                priority=2,
-                impact="Less adaptive layout but better performance"
-            ))
+            suggestions.append(
+                OptimizationSuggestion(
+                    parameter="layout.algorithm",
+                    current_value="adaptive_grid",
+                    suggested_value="equal_grid",
+                    reason="Rising CPU usage - simplify layout calculations",
+                    priority=2,
+                    impact="Less adaptive layout but better performance",
+                )
+            )
 
         return suggestions
 
-    def _generate_memory_optimizations(self, avg_memory: float, trend: str) -> List[OptimizationSuggestion]:
+    def _generate_memory_optimizations(
+        self, avg_memory: float, trend: str
+    ) -> List[OptimizationSuggestion]:
         """Generate memory optimization suggestions."""
         suggestions = []
 
         if avg_memory > 80:
-            suggestions.append(OptimizationSuggestion(
-                parameter="streaming.segment_count",
-                current_value=10,
-                suggested_value=5,
-                reason=f"High memory usage ({avg_memory:.1f}%) - reduce buffer",
-                priority=3,
-                impact="Less buffering but reduced stream stability"
-            ))
+            suggestions.append(
+                OptimizationSuggestion(
+                    parameter="streaming.segment_count",
+                    current_value=10,
+                    suggested_value=5,
+                    reason=f"High memory usage ({avg_memory:.1f}%) - reduce buffer",
+                    priority=3,
+                    impact="Less buffering but reduced stream stability",
+                )
+            )
 
         return suggestions
 
-    def _generate_fps_optimizations(self, avg_fps: float, target_fps: float) -> List[OptimizationSuggestion]:
+    def _generate_fps_optimizations(
+        self, avg_fps: float, target_fps: float
+    ) -> List[OptimizationSuggestion]:
         """Generate FPS optimization suggestions."""
         suggestions = []
 
         fps_deficit = target_fps - avg_fps
         if fps_deficit > 5:
-            suggestions.append(OptimizationSuggestion(
-                parameter="streaming.target_fps",
-                current_value=target_fps,
-                suggested_value=max(15, target_fps - 5),
-                reason=f"FPS dropping ({avg_fps:.1f}/{target_fps:.1f}) - reduce target",
-                priority=2,
-                impact="Lower frame rate but more stable performance"
-            ))
+            suggestions.append(
+                OptimizationSuggestion(
+                    parameter="streaming.target_fps",
+                    current_value=target_fps,
+                    suggested_value=max(15, target_fps - 5),
+                    reason=f"FPS dropping ({avg_fps:.1f}/{target_fps:.1f}) - reduce target",
+                    priority=2,
+                    impact="Lower frame rate but more stable performance",
+                )
+            )
 
         return suggestions
 
@@ -510,31 +563,41 @@ class AutoConfigManager:
 
         for camera_id, metrics in self.camera_metrics.items():
             # Inactive camera optimization
-            time_since_activity = (datetime.now() - metrics.last_activity).total_seconds()
-            if time_since_activity > 300 and metrics.activity_level < 0.1:  # 5 minutes inactive
-                suggestions.append(OptimizationSuggestion(
-                    parameter=f"cameras.{camera_id}.recording.enabled",
-                    current_value=True,
-                    suggested_value=False,
-                    reason=f"Camera {camera_id} inactive for {time_since_activity / 60:.1f} minutes",
-                    priority=1,
-                    impact="Reduced processing load for inactive camera"
-                ))
+            time_since_activity = (
+                datetime.now() - metrics.last_activity
+            ).total_seconds()
+            if (
+                time_since_activity > 300 and metrics.activity_level < 0.1
+            ):  # 5 minutes inactive
+                suggestions.append(
+                    OptimizationSuggestion(
+                        parameter=f"cameras.{camera_id}.recording.enabled",
+                        current_value=True,
+                        suggested_value=False,
+                        reason=f"Camera {camera_id} inactive for {time_since_activity / 60:.1f} minutes",
+                        priority=1,
+                        impact="Reduced processing load for inactive camera",
+                    )
+                )
 
             # High error rate optimization
             if metrics.error_count > 10:
-                suggestions.append(OptimizationSuggestion(
-                    parameter=f"cameras.{camera_id}.resolution",
-                    current_value=f"{metrics.resolution[0]}x{metrics.resolution[1]}",
-                    suggested_value="auto",
-                    reason=f"Camera {camera_id} has {metrics.error_count} errors",
-                    priority=2,
-                    impact="Auto-detect resolution to fix connection issues"
-                ))
+                suggestions.append(
+                    OptimizationSuggestion(
+                        parameter=f"cameras.{camera_id}.resolution",
+                        current_value=f"{metrics.resolution[0]}x{metrics.resolution[1]}",
+                        suggested_value="auto",
+                        reason=f"Camera {camera_id} has {metrics.error_count} errors",
+                        priority=2,
+                        impact="Auto-detect resolution to fix connection issues",
+                    )
+                )
 
         return suggestions
 
-    def _update_auto_config_suggestions(self, suggestions: List[OptimizationSuggestion]) -> None:
+    def _update_auto_config_suggestions(
+        self, suggestions: List[OptimizationSuggestion]
+    ) -> None:
         """Update auto-config with optimization suggestions."""
         self.auto_config["optimization"]["suggestions"] = [
             {
@@ -544,13 +607,15 @@ class AutoConfigManager:
                 "reason": s.reason,
                 "priority": s.priority,
                 "impact": s.impact,
-                "timestamp": datetime.now().isoformat()
+                "timestamp": datetime.now().isoformat(),
             }
             for s in suggestions
         ]
         self._save_auto_config()
 
-    async def _apply_high_priority_suggestions(self, suggestions: List[OptimizationSuggestion]) -> None:
+    async def _apply_high_priority_suggestions(
+        self, suggestions: List[OptimizationSuggestion]
+    ) -> None:
         """Auto-apply high priority suggestions."""
         high_priority = [s for s in suggestions if s.priority >= 3]
 
@@ -562,11 +627,13 @@ class AutoConfigManager:
 
         for suggestion in high_priority:
             changes[suggestion.parameter] = suggestion.suggested_value
-            applied_suggestions.append({
-                "parameter": suggestion.parameter,
-                "reason": suggestion.reason,
-                "impact": suggestion.impact
-            })
+            applied_suggestions.append(
+                {
+                    "parameter": suggestion.parameter,
+                    "reason": suggestion.reason,
+                    "impact": suggestion.impact,
+                }
+            )
 
         if changes:
             await self._apply_config_changes(changes, "Auto-optimization")
@@ -596,9 +663,9 @@ class AutoConfigManager:
                     {
                         "reason": reason,
                         "changes": changes,
-                        "timestamp": datetime.now().isoformat()
+                        "timestamp": datetime.now().isoformat(),
                     },
-                    config_snapshot=config
+                    config_snapshot=config,
                 )
 
             logging.info(f"Applied config changes: {reason}")
@@ -609,7 +676,7 @@ class AutoConfigManager:
 
     def _set_nested_value(self, config: Dict, key: str, value: Any) -> None:
         """Set nested configuration value using dot notation."""
-        keys = key.split('.')
+        keys = key.split(".")
         current = config
 
         for k in keys[:-1]:
@@ -626,13 +693,15 @@ class AutoConfigManager:
                 "detected_resolution": camera_info["resolution"],
                 "source_type": camera_info["type"],
                 "last_detected": datetime.now().isoformat(),
-                "auto_configured": True
+                "auto_configured": True,
             }
             for camera_id, camera_info in detected_cameras.items()
         }
         self._save_auto_config()
 
-    async def update_motion_data(self, camera_id: str, motion_zones: List[Dict]) -> None:
+    async def update_motion_data(
+        self, camera_id: str, motion_zones: List[Dict]
+    ) -> None:
         """Update auto-config with motion detection data."""
         if camera_id not in self.camera_metrics:
             self.camera_metrics[camera_id] = CameraMetrics(
@@ -642,7 +711,7 @@ class AutoConfigManager:
                 activity_level=0.0,
                 motion_zones=0,
                 error_count=0,
-                last_activity=datetime.now()
+                last_activity=datetime.now(),
             )
 
         metrics = self.camera_metrics[camera_id]
@@ -662,34 +731,41 @@ class AutoConfigManager:
             **self.auto_config["cameras"].get(camera_id, {}),
             "activity_level": metrics.activity_level,
             "motion_zones": metrics.motion_zones,
-            "last_activity": metrics.last_activity.isoformat()
+            "last_activity": metrics.last_activity.isoformat(),
         }
 
     async def update_layout_state(self, layout_result) -> None:
         """Update auto-config with layout state."""
-        self.auto_config["layout"].update({
-            "active_fragments": len(layout_result.fragments),
-            "efficiency_score": layout_result.layout_efficiency,
-            "last_recalculation": datetime.now().isoformat(),
-            "css_grid_state": layout_result.css_template[:200] + "..." if len(
-                layout_result.css_template) > 200 else layout_result.css_template
-        })
+        self.auto_config["layout"].update(
+            {
+                "active_fragments": len(layout_result.fragments),
+                "efficiency_score": layout_result.layout_efficiency,
+                "last_recalculation": datetime.now().isoformat(),
+                "css_grid_state": layout_result.css_template[:200] + "..."
+                if len(layout_result.css_template) > 200
+                else layout_result.css_template,
+            }
+        )
 
-    async def log_camera_config_change(self, camera_id: str, changes: Dict[str, Any]) -> None:
+    async def log_camera_config_change(
+        self, camera_id: str, changes: Dict[str, Any]
+    ) -> None:
         """Log camera configuration change."""
         if self.git_logger:
             await self.git_logger.log_config_change(
                 {
                     "camera_id": camera_id,
                     "changes": changes,
-                    "timestamp": datetime.now().isoformat()
+                    "timestamp": datetime.now().isoformat(),
                 },
-                self.config_manager.get_config()
+                self.config_manager.get_config(),
             )
 
     async def get_optimization_status(self) -> Dict[str, Any]:
         """Get current optimization status."""
-        recent_metrics = self.performance_history[-10:] if self.performance_history else []
+        recent_metrics = (
+            self.performance_history[-10:] if self.performance_history else []
+        )
 
         if recent_metrics:
             avg_cpu = statistics.mean([m.cpu_usage for m in recent_metrics])
@@ -703,23 +779,26 @@ class AutoConfigManager:
             "auto_adjust_enabled": self.auto_adjust_enabled,
             "last_optimization": self.last_optimization.isoformat(),
             "suggestions_count": len(self.optimization_suggestions),
-            "high_priority_suggestions": len([s for s in self.optimization_suggestions if s.priority >= 3]),
+            "high_priority_suggestions": len(
+                [s for s in self.optimization_suggestions if s.priority >= 3]
+            ),
             "performance_summary": {
                 "avg_cpu_usage": avg_cpu,
                 "avg_memory_usage": avg_memory,
                 "avg_fps": avg_fps,
                 "camera_count": len(self.camera_metrics),
-                "active_cameras": len([c for c in self.camera_metrics.values()
-                                       if (datetime.now() - c.last_activity).total_seconds() < 60])
+                "active_cameras": len(
+                    [
+                        c
+                        for c in self.camera_metrics.values()
+                        if (datetime.now() - c.last_activity).total_seconds() < 60
+                    ]
+                ),
             },
             "recent_suggestions": [
-                {
-                    "parameter": s.parameter,
-                    "reason": s.reason,
-                    "priority": s.priority
-                }
+                {"parameter": s.parameter, "reason": s.reason, "priority": s.priority}
                 for s in self.optimization_suggestions[-5:]  # Last 5 suggestions
-            ]
+            ],
         }
 
     async def get_performance_history(self, hours: int = 1) -> List[Dict[str, Any]]:
@@ -734,7 +813,7 @@ class AutoConfigManager:
                 "fps_actual": m.fps_actual,
                 "fps_target": m.fps_target,
                 "processing_time_ms": m.processing_time_ms,
-                "active_cameras": m.active_cameras
+                "active_cameras": m.active_cameras,
             }
             for m in self.performance_history
             if m.timestamp > cutoff_time
@@ -760,12 +839,20 @@ class AutoConfigManager:
             await self.git_logger.log_event(
                 "system_shutdown",
                 {
-                    "final_performance": asdict(self.performance_history[-1]) if self.performance_history else {},
+                    "final_performance": asdict(self.performance_history[-1])
+                    if self.performance_history
+                    else {},
                     "optimization_count": len(self.optimization_suggestions),
-                    "monitoring_duration": (datetime.now() - (self.performance_history[
-                                                                  0].timestamp if self.performance_history else datetime.now())).total_seconds()
+                    "monitoring_duration": (
+                        datetime.now()
+                        - (
+                            self.performance_history[0].timestamp
+                            if self.performance_history
+                            else datetime.now()
+                        )
+                    ).total_seconds(),
                 },
-                summary="Auto Config Manager shutdown"
+                summary="Auto Config Manager shutdown",
             )
 
         logging.info("Auto Config Manager shutdown complete")

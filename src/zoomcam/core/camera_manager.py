@@ -8,6 +8,7 @@ Handles USB cameras, RTSP streams, and resolution detection.
 
 import asyncio
 import logging
+import time
 import cv2
 import numpy as np
 from typing import Dict, List, Optional, Tuple, Any
@@ -24,6 +25,7 @@ from zoomcam.utils.exceptions import CameraError, ZoomCamError
 @dataclass
 class CameraInfo:
     """Camera information and status."""
+
     id: str
     name: str
     source: str
@@ -39,6 +41,7 @@ class CameraInfo:
 @dataclass
 class CameraFrame:
     """Camera frame with metadata."""
+
     camera_id: str
     frame: np.ndarray
     timestamp: datetime
@@ -109,9 +112,11 @@ class CameraManager:
                         "source": f"/dev/video{i}",
                         "resolution": (width, height),
                         "fps": fps,
-                        "type": "usb"
+                        "type": "usb",
                     }
-                    logging.info(f"Detected USB camera {i}: {width}x{height} @ {fps}fps")
+                    logging.info(
+                        f"Detected USB camera {i}: {width}x{height} @ {fps}fps"
+                    )
                 cap.release()
 
         # Add configured RTSP cameras
@@ -126,7 +131,7 @@ class CameraManager:
                             "source": source,
                             "resolution": resolution,
                             "fps": 30.0,  # Default for RTSP
-                            "type": "rtsp"
+                            "type": "rtsp",
                         }
                         logging.info(f"Detected RTSP camera {camera_id}: {resolution}")
 
@@ -179,7 +184,9 @@ class CameraManager:
                     status="inactive",
                     zoom=camera_config.get("zoom", 3.0),
                     max_fragments=camera_config.get("max_fragments", 2),
-                    recording_enabled=camera_config.get("recording", {}).get("enabled", True)
+                    recording_enabled=camera_config.get("recording", {}).get(
+                        "enabled", True
+                    ),
                 )
 
                 self.cameras[camera_id] = camera_info
@@ -187,8 +194,7 @@ class CameraManager:
                 # Setup motion detector
                 motion_config = camera_config.get("motion_detection", {})
                 self.motion_detectors[camera_id] = MotionDetector(
-                    camera_id=camera_id,
-                    config=motion_config
+                    camera_id=camera_id, config=motion_config
                 )
 
                 # Setup frame queue
@@ -225,9 +231,7 @@ class CameraManager:
         # Start frame capture threads for each camera
         for camera_id in self.cameras:
             thread = threading.Thread(
-                target=self._capture_frames,
-                args=(camera_id,),
-                daemon=True
+                target=self._capture_frames, args=(camera_id,), daemon=True
             )
             thread.start()
             self.frame_processors[camera_id] = thread
@@ -268,7 +272,9 @@ class CameraManager:
 
                 if not ret or frame is None:
                     camera.status = "no_signal"
-                    await asyncio.sleep(1)
+                    time.sleep(
+                        1
+                    )  # Using time.sleep instead of asyncio.sleep in a separate thread
                     continue
 
                 # Process frame
@@ -277,17 +283,32 @@ class CameraManager:
                     camera_id=camera_id,
                     frame=frame,
                     timestamp=datetime.now(),
-                    frame_number=frame_number
+                    frame_number=frame_number,
                 )
 
-                # Apply zoom and interpolation if needed
-                processed_frame = await self._process_camera_frame(camera_frame)
+                try:
+                    # Process frame in the main thread's event loop
+                    if asyncio.get_running_loop().is_running():
+                        # Run the coroutine in the main thread's event loop
+                        future = asyncio.run_coroutine_threadsafe(
+                            self._process_camera_frame(camera_frame),
+                            asyncio.get_event_loop(),
+                        )
+                        processed_frame = future.result()
 
-                # Motion detection
-                motion_zones = self.motion_detectors[camera_id].detect_motion(
-                    processed_frame.frame
-                )
-                processed_frame.motion_zones = motion_zones
+                        # Motion detection
+                        motion_zones = self.motion_detectors[camera_id].detect_motion(
+                            processed_frame.frame
+                        )
+                        processed_frame.motion_zones = motion_zones
+
+                        # Update the latest frame
+                        self.latest_frames[camera_id] = processed_frame
+                except Exception as e:
+                    logging.error(
+                        f"Error processing frame from camera {camera_id}: {e}"
+                    )
+                    continue
 
                 # Update latest frame
                 self.latest_frames[camera_id] = processed_frame
@@ -308,7 +329,7 @@ class CameraManager:
                 self.frame_counts[camera_id] += 1
 
                 # Small delay to prevent excessive CPU usage
-                await asyncio.sleep(0.033)  # ~30 FPS
+                time.sleep(0.033)  # ~30 FPS - using time.sleep in thread
 
         except Exception as e:
             logging.error(f"Error capturing from camera {camera_id}: {e}")
@@ -349,7 +370,7 @@ class CameraManager:
         start_x = (width - crop_width) // 2
         start_y = (height - crop_height) // 2
 
-        cropped = frame[start_y:start_y + crop_height, start_x:start_x + crop_width]
+        cropped = frame[start_y : start_y + crop_height, start_x : start_x + crop_width]
 
         # Resize back to original size
         return cv2.resize(cropped, (width, height), interpolation=cv2.INTER_LANCZOS4)
@@ -365,21 +386,33 @@ class CameraManager:
         while self.running:
             try:
                 # Process motion detection and layout updates
-                for camera_id, camera in self.cameras.items():
+                for camera_id, camera in list(self.cameras.items()):
+                    if not self.running:
+                        break
+
                     if camera.status == "active" and camera_id in self.latest_frames:
                         latest_frame = self.latest_frames[camera_id]
 
                         # Update auto-config with motion data
-                        if (self.auto_config and
-                                latest_frame.motion_zones):
-                            await self.auto_config.update_motion_data(
-                                camera_id, latest_frame.motion_zones
-                            )
+                        if self.auto_config and latest_frame.motion_zones:
+                            try:
+                                await self.auto_config.update_motion_data(
+                                    camera_id, latest_frame.motion_zones
+                                )
+                            except Exception as e:
+                                logging.error(
+                                    f"Error updating motion data for camera {camera_id}: {e}"
+                                )
+                                continue
 
+                # Use a non-blocking sleep
                 await asyncio.sleep(0.1)  # 10 Hz processing
 
+            except asyncio.CancelledError:
+                logging.info("Frame processing loop cancelled")
+                raise
             except Exception as e:
-                logging.error(f"Error in frame processing loop: {e}")
+                logging.error(f"Error in frame processing loop: {e}", exc_info=True)
                 await asyncio.sleep(1)
 
     async def get_latest_frame(self, camera_id: str) -> Optional[CameraFrame]:
@@ -398,14 +431,18 @@ class CameraManager:
                 "fps": camera.fps,
                 "frame_count": self.frame_counts.get(camera_id, 0),
                 "error_count": self.error_counts.get(camera_id, 0),
-                "last_frame_time": camera.last_frame_time.isoformat() if camera.last_frame_time else None,
+                "last_frame_time": camera.last_frame_time.isoformat()
+                if camera.last_frame_time
+                else None,
                 "zoom": camera.zoom,
                 "max_fragments": camera.max_fragments,
-                "recording_enabled": camera.recording_enabled
+                "recording_enabled": camera.recording_enabled,
             }
         return status
 
-    async def update_camera_config(self, camera_id: str, updates: Dict[str, Any]) -> None:
+    async def update_camera_config(
+        self, camera_id: str, updates: Dict[str, Any]
+    ) -> None:
         """Update camera configuration dynamically."""
         if camera_id not in self.cameras:
             raise CameraError(f"Camera {camera_id} not found")
@@ -479,7 +516,7 @@ class CameraManager:
             status="inactive",
             zoom=camera_config.get("zoom", 3.0),
             max_fragments=camera_config.get("max_fragments", 2),
-            recording_enabled=camera_config.get("recording", {}).get("enabled", True)
+            recording_enabled=camera_config.get("recording", {}).get("enabled", True),
         )
 
         self.cameras[camera_id] = camera_info
@@ -487,8 +524,7 @@ class CameraManager:
         # Setup motion detector
         motion_config = camera_config.get("motion_detection", {})
         self.motion_detectors[camera_id] = MotionDetector(
-            camera_id=camera_id,
-            config=motion_config
+            camera_id=camera_id, config=motion_config
         )
 
         # Setup frame queue
@@ -499,9 +535,7 @@ class CameraManager:
         # Start capture thread if processing is running
         if self.running:
             thread = threading.Thread(
-                target=self._capture_frames,
-                args=(camera_id,),
-                daemon=True
+                target=self._capture_frames, args=(camera_id,), daemon=True
             )
             thread.start()
             self.frame_processors[camera_id] = thread
@@ -562,10 +596,10 @@ class CameraManager:
                 camera_id: {
                     "frames": self.frame_counts.get(camera_id, 0),
                     "errors": self.error_counts.get(camera_id, 0),
-                    "status": camera.status
+                    "status": camera.status,
                 }
                 for camera_id, camera in self.cameras.items()
-            }
+            },
         }
 
     async def shutdown(self) -> None:

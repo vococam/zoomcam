@@ -40,15 +40,17 @@ try:
 except ImportError:
     OPENCV_AVAILABLE = False
 
-T = TypeVar('T')
-F = TypeVar('F', bound=Callable[..., Any])
+T = TypeVar("T")
+F = TypeVar("F", bound=Callable[..., Any])
 
 
 # ============ SYSTEM INFORMATION ============
 
+
 @dataclass
 class SystemInfo:
     """System information container."""
+
     platform: str
     architecture: str
     cpu_count: int
@@ -73,17 +75,17 @@ def get_system_info() -> SystemInfo:
         opencv_available=OPENCV_AVAILABLE,
         psutil_available=PSUTIL_AVAILABLE,
         disk_space_gb=0.0,
-        network_interfaces=[]
+        network_interfaces=[],
     )
 
     # Memory information
     if PSUTIL_AVAILABLE:
         memory = psutil.virtual_memory()
-        info.memory_total_gb = memory.total / (1024 ** 3)
+        info.memory_total_gb = memory.total / (1024**3)
 
         # Disk space
-        disk = psutil.disk_usage('/')
-        info.disk_space_gb = disk.free / (1024 ** 3)
+        disk = psutil.disk_usage("/")
+        info.disk_space_gb = disk.free / (1024**3)
 
         # Network interfaces
         info.network_interfaces = list(psutil.net_if_addrs().keys())
@@ -103,29 +105,23 @@ def detect_display_resolution() -> Optional[str]:
         if platform.system() == "Linux":
             # Try xrandr first
             result = subprocess.run(
-                ["xrandr"],
-                capture_output=True,
-                text=True,
-                timeout=5
+                ["xrandr"], capture_output=True, text=True, timeout=5
             )
             if result.returncode == 0:
-                for line in result.stdout.split('\n'):
-                    if '*' in line:  # Current resolution
-                        match = re.search(r'(\d+x\d+)', line)
+                for line in result.stdout.split("\n"):
+                    if "*" in line:  # Current resolution
+                        match = re.search(r"(\d+x\d+)", line)
                         if match:
                             return match.group(1)
 
             # Try fbset as fallback
             result = subprocess.run(
-                ["fbset", "-s"],
-                capture_output=True,
-                text=True,
-                timeout=5
+                ["fbset", "-s"], capture_output=True, text=True, timeout=5
             )
             if result.returncode == 0:
-                lines = result.stdout.split('\n')
+                lines = result.stdout.split("\n")
                 for line in lines:
-                    if 'geometry' in line:
+                    if "geometry" in line:
                         parts = line.split()
                         if len(parts) >= 3:
                             return f"{parts[1]}x{parts[2]}"
@@ -136,6 +132,7 @@ def detect_display_resolution() -> Optional[str]:
     # Try Python tkinter as last resort
     try:
         import tkinter as tk
+
         root = tk.Tk()
         width = root.winfo_screenwidth()
         height = root.winfo_screenheight()
@@ -151,11 +148,7 @@ def detect_gpu_support() -> bool:
     """Detect if GPU acceleration is available."""
     try:
         # Check for NVIDIA GPU
-        result = subprocess.run(
-            ["nvidia-smi"],
-            capture_output=True,
-            timeout=5
-        )
+        result = subprocess.run(["nvidia-smi"], capture_output=True, timeout=5)
         if result.returncode == 0:
             return True
     except Exception:
@@ -174,9 +167,9 @@ def detect_gpu_support() -> bool:
 def is_raspberry_pi() -> bool:
     """Check if running on Raspberry Pi."""
     try:
-        with open('/proc/cpuinfo', 'r') as f:
+        with open("/proc/cpuinfo", "r") as f:
             cpuinfo = f.read()
-            return 'Raspberry Pi' in cpuinfo or 'BCM' in cpuinfo
+            return "Raspberry Pi" in cpuinfo or "BCM" in cpuinfo
     except Exception:
         return False
 
@@ -185,7 +178,7 @@ def get_cpu_temperature() -> Optional[float]:
     """Get CPU temperature (Raspberry Pi specific)."""
     try:
         if is_raspberry_pi():
-            with open('/sys/class/thermal/thermal_zone0/temp', 'r') as f:
+            with open("/sys/class/thermal/thermal_zone0/temp", "r") as f:
                 temp = int(f.read().strip()) / 1000.0
                 return temp
     except Exception:
@@ -194,10 +187,10 @@ def get_cpu_temperature() -> Optional[float]:
     try:
         if PSUTIL_AVAILABLE:
             sensors = psutil.sensors_temperatures()
-            if 'cpu_thermal' in sensors:
-                return sensors['cpu_thermal'][0].current
-            elif 'coretemp' in sensors:
-                return sensors['coretemp'][0].current
+            if "cpu_thermal" in sensors:
+                return sensors["cpu_thermal"][0].current
+            elif "coretemp" in sensors:
+                return sensors["coretemp"][0].current
     except Exception:
         pass
 
@@ -205,6 +198,7 @@ def get_cpu_temperature() -> Optional[float]:
 
 
 # ============ FILE AND PATH UTILITIES ============
+
 
 def ensure_directory(path: Union[str, Path]) -> Path:
     """Ensure directory exists, create if not."""
@@ -218,16 +212,16 @@ def safe_filename(filename: str) -> str:
     # Remove or replace invalid characters
     invalid_chars = '<>:"/\\|?*'
     for char in invalid_chars:
-        filename = filename.replace(char, '_')
+        filename = filename.replace(char, "_")
 
     # Remove leading/trailing spaces and dots
-    filename = filename.strip('. ')
+    filename = filename.strip(". ")
 
     # Limit length
     if len(filename) > 200:
         filename = filename[:200]
 
-    return filename or 'unnamed'
+    return filename or "unnamed"
 
 
 def get_file_size_mb(file_path: Union[str, Path]) -> float:
@@ -240,10 +234,10 @@ def get_file_size_mb(file_path: Union[str, Path]) -> float:
 
 
 def cleanup_old_files(
-        directory: Union[str, Path],
-        max_age_days: int = 7,
-        pattern: str = "*",
-        dry_run: bool = False
+    directory: Union[str, Path],
+    max_age_days: int = 7,
+    pattern: str = "*",
+    dry_run: bool = False,
 ) -> List[Path]:
     """Clean up old files in directory."""
     directory = Path(directory)
@@ -267,7 +261,9 @@ def cleanup_old_files(
     return old_files
 
 
-def backup_file(file_path: Union[str, Path], backup_suffix: str = None) -> Optional[Path]:
+def backup_file(
+    file_path: Union[str, Path], backup_suffix: str = None
+) -> Optional[Path]:
     """Create backup of file."""
     file_path = Path(file_path)
     if not file_path.exists():
@@ -280,6 +276,7 @@ def backup_file(file_path: Union[str, Path], backup_suffix: str = None) -> Optio
 
     try:
         import shutil
+
         shutil.copy2(file_path, backup_path)
         return backup_path
     except Exception:
@@ -288,30 +285,31 @@ def backup_file(file_path: Union[str, Path], backup_suffix: str = None) -> Optio
 
 # ============ CONFIGURATION UTILITIES ============
 
+
 def parse_resolution(resolution: str) -> Tuple[int, int]:
     """Parse resolution string to width, height tuple."""
     resolution = resolution.lower().strip()
 
     # Named resolutions
     named_resolutions = {
-        '4k': (3840, 2160),
-        'uhd': (3840, 2160),
-        '1080p': (1920, 1080),
-        'fhd': (1920, 1080),
-        '720p': (1280, 720),
-        'hd': (1280, 720),
-        '480p': (854, 480),
-        'vga': (640, 480),
-        'qvga': (320, 240)
+        "4k": (3840, 2160),
+        "uhd": (3840, 2160),
+        "1080p": (1920, 1080),
+        "fhd": (1920, 1080),
+        "720p": (1280, 720),
+        "hd": (1280, 720),
+        "480p": (854, 480),
+        "vga": (640, 480),
+        "qvga": (320, 240),
     }
 
     if resolution in named_resolutions:
         return named_resolutions[resolution]
 
     # Parse WxH format
-    if 'x' in resolution:
+    if "x" in resolution:
         try:
-            width, height = resolution.split('x')
+            width, height = resolution.split("x")
             return (int(width), int(height))
         except ValueError:
             pass
@@ -324,13 +322,18 @@ def validate_resolution(resolution: Tuple[int, int]) -> bool:
     """Validate resolution tuple."""
     width, height = resolution
     return (
-            isinstance(width, int) and isinstance(height, int) and
-            32 <= width <= 7680 and 32 <= height <= 4320 and
-            width % 2 == 0 and height % 2 == 0  # Even numbers for video encoding
+        isinstance(width, int)
+        and isinstance(height, int)
+        and 32 <= width <= 7680
+        and 32 <= height <= 4320
+        and width % 2 == 0
+        and height % 2 == 0  # Even numbers for video encoding
     )
 
 
-def merge_configs(base_config: Dict[str, Any], override_config: Dict[str, Any]) -> Dict[str, Any]:
+def merge_configs(
+    base_config: Dict[str, Any], override_config: Dict[str, Any]
+) -> Dict[str, Any]:
     """Recursively merge configuration dictionaries."""
     result = base_config.copy()
 
@@ -345,7 +348,7 @@ def merge_configs(base_config: Dict[str, Any], override_config: Dict[str, Any]) 
 
 def get_nested_value(data: Dict[str, Any], key_path: str, default: Any = None) -> Any:
     """Get nested value using dot notation (e.g., 'cameras.camera_1.zoom')."""
-    keys = key_path.split('.')
+    keys = key_path.split(".")
     current = data
 
     try:
@@ -358,7 +361,7 @@ def get_nested_value(data: Dict[str, Any], key_path: str, default: Any = None) -
 
 def set_nested_value(data: Dict[str, Any], key_path: str, value: Any) -> bool:
     """Set nested value using dot notation."""
-    keys = key_path.split('.')
+    keys = key_path.split(".")
     current = data
 
     try:
@@ -374,6 +377,7 @@ def set_nested_value(data: Dict[str, Any], key_path: str, value: Any) -> bool:
 
 
 # ============ NETWORK UTILITIES ============
+
 
 def get_local_ip() -> Optional[str]:
     """Get local IP address."""
@@ -397,7 +401,9 @@ def is_port_available(port: int, host: str = "localhost") -> bool:
         return False
 
 
-def find_available_port(start_port: int = 8000, max_attempts: int = 100) -> Optional[int]:
+def find_available_port(
+    start_port: int = 8000, max_attempts: int = 100
+) -> Optional[int]:
     """Find next available port starting from start_port."""
     for port in range(start_port, start_port + max_attempts):
         if is_port_available(port):
@@ -408,11 +414,11 @@ def find_available_port(start_port: int = 8000, max_attempts: int = 100) -> Opti
 def validate_rtsp_url(url: str) -> bool:
     """Validate RTSP URL format."""
     rtsp_pattern = re.compile(
-        r'^rtsp://'
-        r'(?:(?P<user>[^:@]+)(?::(?P<password>[^@]+))?@)?'
-        r'(?P<host>[^:/]+)'
-        r'(?::(?P<port>\d+))?'
-        r'(?P<path>/.*)?
+        r"^rtsp://"
+        r"(?:(?P<user>[^:@]+)(?::(?P<password>[^@]+))?@)?"
+        r"(?P<host>[^:/]+)"
+        r"(?::(?P<port>\d+))?"
+        r"(?P<path>/.*)?"
     )
     return bool(rtsp_pattern.match(url))
 
@@ -420,11 +426,11 @@ def validate_rtsp_url(url: str) -> bool:
 def extract_rtsp_components(url: str) -> Dict[str, Optional[str]]:
     """Extract components from RTSP URL."""
     rtsp_pattern = re.compile(
-        r'^rtsp://'
-        r'(?:(?P<user>[^:@]+)(?::(?P<password>[^@]+))?@)?'
-        r'(?P<host>[^:/]+)'
-        r'(?::(?P<port>\d+))?'
-        r'(?P<path>/.*)?
+        r"^rtsp://"
+        r"(?:(?P<user>[^:@]+)(?::(?P<password>[^@]+))?@)?"
+        r"(?P<host>[^:/]+)"
+        r"(?::(?P<port>\d+))?"
+        r"(?P<path>/.*)?"
     )
 
     match = rtsp_pattern.match(url)
@@ -434,6 +440,7 @@ def extract_rtsp_components(url: str) -> Dict[str, Optional[str]]:
 
 
 # ============ PERFORMANCE UTILITIES ============
+
 
 class Timer:
     """Simple timer context manager."""
@@ -476,21 +483,26 @@ class PerformanceMonitor:
 
             # Keep only recent measurements
             if len(self.measurements[metric_name]) > self.max_samples:
-                self.measurements[metric_name] = self.measurements[metric_name][-self.max_samples:]
+                self.measurements[metric_name] = self.measurements[metric_name][
+                    -self.max_samples :
+                ]
 
     def get_stats(self, metric_name: str) -> Dict[str, float]:
         """Get statistics for a metric."""
         with self.lock:
-            if metric_name not in self.measurements or not self.measurements[metric_name]:
+            if (
+                metric_name not in self.measurements
+                or not self.measurements[metric_name]
+            ):
                 return {}
 
             values = self.measurements[metric_name]
             return {
-                'count': len(values),
-                'min': min(values),
-                'max': max(values),
-                'avg': sum(values) / len(values),
-                'recent': values[-1] if values else 0
+                "count": len(values),
+                "min": min(values),
+                "max": max(values),
+                "avg": sum(values) / len(values),
+                "recent": values[-1] if values else 0,
             }
 
     def get_all_stats(self) -> Dict[str, Dict[str, float]]:
@@ -519,6 +531,7 @@ def measure_performance(metric_name: str, monitor: PerformanceMonitor = None):
 
 
 # ============ ASYNC UTILITIES ============
+
 
 async def run_in_thread(func: Callable[..., T], *args, **kwargs) -> T:
     """Run synchronous function in thread pool."""
@@ -557,7 +570,11 @@ class AsyncCache:
 
             # Create new value if factory provided
             if factory:
-                value = await factory() if asyncio.iscoroutinefunction(factory) else factory()
+                value = (
+                    await factory()
+                    if asyncio.iscoroutinefunction(factory)
+                    else factory()
+                )
                 self.cache[key] = (value, now)
                 return value
 
@@ -576,11 +593,12 @@ class AsyncCache:
 
 # ============ RETRY UTILITIES ============
 
+
 def retry_on_exception(
-        max_attempts: int = 3,
-        delay: float = 1.0,
-        backoff: float = 2.0,
-        exceptions: Tuple[Exception, ...] = (Exception,)
+    max_attempts: int = 3,
+    delay: float = 1.0,
+    backoff: float = 2.0,
+    exceptions: Tuple[Exception, ...] = (Exception,),
 ):
     """Decorator to retry function on specific exceptions."""
 
@@ -607,13 +625,13 @@ def retry_on_exception(
 
 
 async def async_retry(
-        coro_func: Callable[..., Any],
-        max_attempts: int = 3,
-        delay: float = 1.0,
-        backoff: float = 2.0,
-        exceptions: Tuple[Exception, ...] = (Exception,),
-        *args,
-        **kwargs
+    coro_func: Callable[..., Any],
+    max_attempts: int = 3,
+    delay: float = 1.0,
+    backoff: float = 2.0,
+    exceptions: Tuple[Exception, ...] = (Exception,),
+    *args,
+    **kwargs,
 ):
     """Async retry function."""
     current_delay = delay
@@ -633,13 +651,14 @@ async def async_retry(
 
 # ============ VALIDATION UTILITIES ============
 
+
 def validate_camera_id(camera_id: str) -> bool:
     """Validate camera ID format."""
     if not camera_id or not isinstance(camera_id, str):
         return False
 
     # Allow alphanumeric, underscore, hyphen
-    pattern = re.compile(r'^[a-zA-Z0-9_-]+)
+    pattern = re.compile(r"^[a-zA-Z0-9_-]+$")
     return bool(pattern.match(camera_id)) and len(camera_id) <= 50
 
 
@@ -672,16 +691,17 @@ def validate_percentage(value: Union[int, float]) -> bool:
 
 # ============ STRING UTILITIES ============
 
+
 def truncate_string(text: str, max_length: int = 100, suffix: str = "...") -> str:
     """Truncate string to max length."""
     if len(text) <= max_length:
         return text
-    return text[:max_length - len(suffix)] + suffix
+    return text[: max_length - len(suffix)] + suffix
 
 
 def format_bytes(bytes_value: int) -> str:
     """Format bytes as human readable string."""
-    for unit in ['B', 'KB', 'MB', 'GB', 'TB']:
+    for unit in ["B", "KB", "MB", "GB", "TB"]:
         if bytes_value < 1024.0:
             return f"{bytes_value:.1f} {unit}"
         bytes_value /= 1024.0
@@ -712,10 +732,11 @@ def generate_hash(data: str) -> str:
 
 # ============ COLOR UTILITIES ============
 
+
 def hex_to_rgb(hex_color: str) -> Tuple[int, int, int]:
     """Convert hex color to RGB tuple."""
-    hex_color = hex_color.lstrip('#')
-    return tuple(int(hex_color[i:i + 2], 16) for i in (0, 2, 4))
+    hex_color = hex_color.lstrip("#")
+    return tuple(int(hex_color[i : i + 2], 16) for i in (0, 2, 4))
 
 
 def rgb_to_hex(rgb: Tuple[int, int, int]) -> str:
@@ -723,18 +744,20 @@ def rgb_to_hex(rgb: Tuple[int, int, int]) -> str:
     return f"#{rgb[0]:02x}{rgb[1]:02x}{rgb[2]:02x}"
 
 
-def interpolate_color(color1: Tuple[int, int, int], color2: Tuple[int, int, int], factor: float) -> Tuple[
-    int, int, int]:
+def interpolate_color(
+    color1: Tuple[int, int, int], color2: Tuple[int, int, int], factor: float
+) -> Tuple[int, int, int]:
     """Interpolate between two RGB colors."""
     factor = max(0.0, min(1.0, factor))
     return (
         int(color1[0] + (color2[0] - color1[0]) * factor),
         int(color1[1] + (color2[1] - color1[1]) * factor),
-        int(color1[2] + (color2[2] - color1[2]) * factor)
+        int(color1[2] + (color2[2] - color1[2]) * factor),
     )
 
 
 # ============ CONTEXT MANAGERS ============
+
 
 @contextmanager
 def temporary_file(suffix: str = "", content: bytes = b""):
@@ -776,12 +799,13 @@ def suppress_errors(*exceptions):
 
 # ============ CONVERSION UTILITIES ============
 
+
 def any_to_bool(value: Any) -> bool:
     """Convert any value to boolean."""
     if isinstance(value, bool):
         return value
     elif isinstance(value, str):
-        return value.lower() in ('true', '1', 'yes', 'on', 'enabled')
+        return value.lower() in ("true", "1", "yes", "on", "enabled")
     elif isinstance(value, (int, float)):
         return value != 0
     else:
@@ -793,8 +817,8 @@ def any_to_int(value: Any, default: int = 0) -> int:
     try:
         if isinstance(value, str):
             # Handle strings like "1920x1080" -> 1920
-            if 'x' in value:
-                value = value.split('x')[0]
+            if "x" in value:
+                value = value.split("x")[0]
         return int(float(value))
     except (ValueError, TypeError):
         return default
@@ -809,6 +833,7 @@ def any_to_float(value: Any, default: float = 0.0) -> float:
 
 
 # ============ TESTING UTILITIES ============
+
 
 class MockCamera:
     """Mock camera for testing."""
@@ -825,6 +850,7 @@ class MockCamera:
             return False, None
 
         import numpy as np
+
         frame = np.random.randint(0, 255, (*self.resolution[::-1], 3), dtype=np.uint8)
         self.frame_count += 1
         return True, frame
@@ -837,29 +863,22 @@ class MockCamera:
 def create_test_config() -> Dict[str, Any]:
     """Create test configuration."""
     return {
-        "system": {
-            "display": {
-                "target_resolution": "1920x1080",
-                "refresh_rate": 30
-            }
-        },
+        "system": {"display": {"target_resolution": "1920x1080", "refresh_rate": 30}},
         "cameras": {
             "test_camera": {
                 "enabled": True,
                 "source": "/dev/video0",
                 "name": "Test Camera",
                 "zoom": 2.0,
-                "max_fragments": 2
+                "max_fragments": 2,
             }
         },
-        "streaming": {
-            "bitrate": "2M",
-            "target_fps": 30
-        }
+        "streaming": {"bitrate": "2M", "target_fps": 30},
     }
 
 
 # ============ HEALTH CHECK UTILITIES ============
+
 
 class HealthChecker:
     """System health checker."""
@@ -876,7 +895,7 @@ class HealthChecker:
         results = {
             "overall_health": "healthy",
             "timestamp": datetime.now().isoformat(),
-            "checks": {}
+            "checks": {},
         }
 
         unhealthy_count = 0
@@ -886,7 +905,7 @@ class HealthChecker:
                 is_healthy = check_func()
                 results["checks"][name] = {
                     "status": "healthy" if is_healthy else "unhealthy",
-                    "healthy": is_healthy
+                    "healthy": is_healthy,
                 }
                 if not is_healthy:
                     unhealthy_count += 1
@@ -894,7 +913,7 @@ class HealthChecker:
                 results["checks"][name] = {
                     "status": "error",
                     "healthy": False,
-                    "error": str(e)
+                    "error": str(e),
                 }
                 unhealthy_count += 1
 
@@ -914,7 +933,7 @@ def check_disk_space(path: str = "/", min_gb: float = 1.0) -> bool:
     try:
         if PSUTIL_AVAILABLE:
             usage = psutil.disk_usage(path)
-            free_gb = usage.free / (1024 ** 3)
+            free_gb = usage.free / (1024**3)
             return free_gb >= min_gb
     except Exception:
         pass

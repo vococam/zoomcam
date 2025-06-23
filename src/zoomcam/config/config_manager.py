@@ -20,8 +20,13 @@ import hashlib
 import copy
 
 from zoomcam.config.validator import ConfigValidator
-from zoomcam.config.defaults import get_default_user_config, merge_configs
-from zoomcam.utils.exceptions import ConfigurationError, ConfigFileError, ConfigValidationError
+from zoomcam.config.defaults import get_default_user_config
+from zoomcam.utils.helpers import merge_configs
+from zoomcam.utils.exceptions import (
+    ConfigurationError,
+    ConfigFileError,
+    ConfigValidationError,
+)
 from zoomcam.utils.helpers import backup_file, get_nested_value, set_nested_value
 from zoomcam.utils.logger import get_logger
 
@@ -29,6 +34,7 @@ from zoomcam.utils.logger import get_logger
 @dataclass
 class ConfigChange:
     """Configuration change record."""
+
     timestamp: datetime
     key: str
     old_value: Any
@@ -40,6 +46,7 @@ class ConfigChange:
 @dataclass
 class ConfigSource:
     """Configuration source definition."""
+
     name: str
     path: Path
     format: str = "yaml"  # yaml, json, env
@@ -90,7 +97,9 @@ class ConfigManager:
         # Setup configuration sources
         self._setup_config_sources()
 
-        self.logger.info(f"Configuration manager initialized with primary config: {self.primary_config_path}")
+        self.logger.info(
+            f"Configuration manager initialized with primary config: {self.primary_config_path}"
+        )
 
     def _setup_config_sources(self):
         """Setup configuration sources in priority order."""
@@ -102,7 +111,7 @@ class ConfigManager:
             path=config_dir / "defaults.yaml",
             priority=0,
             watch=False,
-            required=False
+            required=False,
         )
         self.config_sources.append(default_source)
 
@@ -112,7 +121,7 @@ class ConfigManager:
             path=self.primary_config_path,
             priority=10,
             watch=True,
-            required=True
+            required=True,
         )
         self.config_sources.append(user_source)
 
@@ -122,7 +131,7 @@ class ConfigManager:
             path=config_dir / "auto-config.yaml",
             priority=5,
             watch=True,
-            required=False
+            required=False,
         )
         self.config_sources.append(auto_source)
 
@@ -132,7 +141,7 @@ class ConfigManager:
             path=config_dir / "env-config.yaml",
             priority=20,
             watch=False,
-            required=False
+            required=False,
         )
         self.config_sources.append(env_source)
 
@@ -146,65 +155,148 @@ class ConfigManager:
                 self.logger.info("Loading configuration from all sources")
 
                 # Start with default configuration
-                merged_config = get_default_user_config()
+                self.logger.debug("Getting default user config")
+                try:
+                    merged_config = get_default_user_config()
+                    self.logger.debug(
+                        f"Default config loaded with keys: {list(merged_config.keys())}"
+                    )
+                except Exception as e:
+                    self.logger.error(
+                        f"Failed to load default config: {str(e)}", exc_info=True
+                    )
+                    raise ConfigurationError(
+                        message=f"Failed to load default configuration: {str(e)}",
+                        severity=ErrorSeverity.CRITICAL,
+                    ) from e
 
                 # Load and merge each source
                 for source in self.config_sources:
+                    self.logger.debug(
+                        f"Processing config source: {source.name} (priority: {source.priority})"
+                    )
                     try:
                         source_config = await self._load_config_source(source)
                         if source_config:
-                            merged_config = merge_configs(merged_config, source_config)
-                            self.logger.debug(f"Merged configuration from {source.name}")
+                            self.logger.debug(
+                                f"Merging config from {source.name} with {len(source_config)} keys"
+                            )
+                            try:
+                                merged_config = merge_configs(
+                                    merged_config, source_config
+                                )
+                                self.logger.debug(
+                                    f"Successfully merged configuration from {source.name}"
+                                )
+                            except Exception as merge_error:
+                                self.logger.error(
+                                    f"Failed to merge config from {source.name}: {str(merge_error)}",
+                                    exc_info=True,
+                                )
+                                raise ConfigurationError(
+                                    message=f"Failed to merge configuration from {source.name}",
+                                    severity=ErrorSeverity.ERROR,
+                                    technical_details={
+                                        "source": source.name,
+                                        "error": str(merge_error),
+                                    },
+                                ) from merge_error
                     except Exception as e:
+                        error_msg = (
+                            f"Error loading config source {source.name}: {str(e)}"
+                        )
                         if source.required:
+                            self.logger.error(
+                                f"{error_msg} (required source, raising error)",
+                                exc_info=True,
+                            )
                             raise ConfigFileError(
                                 config_file=str(source.path),
-                                reason=f"Failed to load required config source: {e}"
-                            )
+                                reason=f"Failed to load required config source: {e}",
+                                severity=ErrorSeverity.CRITICAL,
+                            ) from e
                         else:
-                            self.logger.warning(f"Failed to load optional config source {source.name}: {e}")
+                            self.logger.warning(
+                                f"{error_msg} (optional source, continuing)",
+                                exc_info=True,
+                            )
 
+                self.logger.debug("Applying environment variable substitution")
                 # Apply environment variable substitution
-                merged_config = self._substitute_environment_variables(merged_config)
+                try:
+                    merged_config = self._substitute_environment_variables(
+                        merged_config
+                    )
+                    self.logger.debug("Environment variable substitution completed")
+                except Exception as e:
+                    self.logger.error(
+                        f"Error during environment variable substitution: {e}"
+                    )
+                    raise
 
                 # Validate configuration
                 if self.validation_enabled:
-                    validation_errors = self.validator.validate(merged_config)
-                    if validation_errors:
-                        error_messages = [f"{error.field}: {error.message}" for error in validation_errors]
-                        raise ConfigValidationError(
-                            field="multiple",
-                            value="configuration",
-                            expected="valid configuration according to schema"
-                        )
+                    self.logger.debug("Validating configuration")
+                    try:
+                        validation_errors = self.validator.validate(merged_config)
+                        if validation_errors:
+                            error_messages = [
+                                f"{error.field}: {error.message}"
+                                for error in validation_errors
+                            ]
+                            self.logger.error(
+                                f"Configuration validation failed with {len(validation_errors)} errors"
+                            )
+                            for error in validation_errors:
+                                self.logger.error(f"  - {error.field}: {error.message}")
+                            raise ConfigValidationError(
+                                field="multiple",
+                                value="configuration",
+                                expected="valid configuration according to schema",
+                                technical_details={"validation_errors": error_messages},
+                            )
+                        self.logger.debug("Configuration validation passed")
+                    except Exception as e:
+                        self.logger.error(f"Error during configuration validation: {e}")
+                        raise
 
                 # Store the merged configuration
+                self.logger.debug("Storing merged configuration")
                 old_config = self.config.copy()
                 self.config = merged_config
 
                 # Track changes
                 if old_config:
+                    self.logger.debug("Tracking configuration changes")
                     self._track_config_changes(old_config, merged_config, "reload")
 
                 self.logger.info("Configuration loaded successfully")
                 return self.config
 
             except Exception as e:
-                self.logger.error(f"Failed to load configuration: {e}")
+                self.logger.error(
+                    f"Failed to load configuration: {str(e)}", exc_info=True
+                )
+                if hasattr(e, "__cause__") and e.__cause__ is not None:
+                    self.logger.error(f"Caused by: {str(e.__cause__)}")
                 raise
 
-    async def _load_config_source(self, source: ConfigSource) -> Optional[Dict[str, Any]]:
+    async def _load_config_source(
+        self, source: ConfigSource
+    ) -> Optional[Dict[str, Any]]:
         """Load configuration from a single source."""
         if not source.path.exists():
             if source.required:
                 # Create default config file
                 if source.name == "user":
-                    self.logger.info(f"Creating default configuration file: {source.path}")
+                    self.logger.info(
+                        f"Creating default configuration file: {source.path}"
+                    )
                     await self._create_default_config_file(source.path)
                 else:
                     raise ConfigFileError(
                         config_file=str(source.path),
-                        reason="Required configuration file not found"
+                        reason="Required configuration file not found",
                     )
             else:
                 return None
@@ -212,11 +304,14 @@ class ConfigManager:
         try:
             # Check if file has changed
             current_hash = self._calculate_file_hash(source.path)
-            if source.path.name in self.file_hashes and self.file_hashes[source.path.name] == current_hash:
+            if (
+                source.path.name in self.file_hashes
+                and self.file_hashes[source.path.name] == current_hash
+            ):
                 return None  # File unchanged, skip loading
 
             # Load the configuration file
-            with open(source.path, 'r', encoding='utf-8') as f:
+            with open(source.path, "r", encoding="utf-8") as f:
                 if source.format == "yaml":
                     config_data = yaml.safe_load(f)
                 elif source.format == "json":
@@ -224,7 +319,7 @@ class ConfigManager:
                 else:
                     raise ConfigFileError(
                         config_file=str(source.path),
-                        reason=f"Unsupported format: {source.format}"
+                        reason=f"Unsupported format: {source.format}",
                     )
 
             # Store file hash
@@ -235,32 +330,36 @@ class ConfigManager:
 
         except yaml.YAMLError as e:
             raise ConfigFileError(
-                config_file=str(source.path),
-                reason=f"YAML parsing error: {e}"
+                config_file=str(source.path), reason=f"YAML parsing error: {e}"
             )
         except json.JSONDecodeError as e:
             raise ConfigFileError(
-                config_file=str(source.path),
-                reason=f"JSON parsing error: {e}"
+                config_file=str(source.path), reason=f"JSON parsing error: {e}"
             )
         except Exception as e:
             raise ConfigFileError(
-                config_file=str(source.path),
-                reason=f"File reading error: {e}"
+                config_file=str(source.path), reason=f"File reading error: {e}"
             )
 
     def _calculate_file_hash(self, file_path: Path) -> str:
         """Calculate SHA-256 hash of file content."""
         try:
-            with open(file_path, 'rb') as f:
+            with open(file_path, "rb") as f:
                 return hashlib.sha256(f.read()).hexdigest()
         except Exception:
             return ""
 
-    def _substitute_environment_variables(self, config: Dict[str, Any]) -> Dict[str, Any]:
+    def _substitute_environment_variables(
+        self, config: Dict[str, Any]
+    ) -> Dict[str, Any]:
         """Substitute environment variables in configuration values."""
+
         def substitute_value(value):
-            if isinstance(value, str) and value.startswith("${") and value.endswith("}"):
+            if (
+                isinstance(value, str)
+                and value.startswith("${")
+                and value.endswith("}")
+            ):
                 env_var = value[2:-1]
                 default_value = None
 
@@ -284,13 +383,16 @@ class ConfigManager:
 
         default_config = get_default_user_config()
 
-        with open(config_path, 'w', encoding='utf-8') as f:
+        with open(config_path, "w", encoding="utf-8") as f:
             yaml.dump(default_config, f, default_flow_style=False, indent=2)
 
         self.logger.info(f"Created default configuration file: {config_path}")
 
-    def _track_config_changes(self, old_config: Dict[str, Any], new_config: Dict[str, Any], source: str):
+    def _track_config_changes(
+        self, old_config: Dict[str, Any], new_config: Dict[str, Any], source: str
+    ):
         """Track configuration changes."""
+
         def find_changes(old_dict, new_dict, prefix=""):
             changes = []
 
@@ -300,37 +402,43 @@ class ConfigManager:
 
                 if key not in old_dict:
                     # New key
-                    changes.append(ConfigChange(
-                        timestamp=datetime.now(),
-                        key=full_key,
-                        old_value=None,
-                        new_value=new_value,
-                        source=source
-                    ))
+                    changes.append(
+                        ConfigChange(
+                            timestamp=datetime.now(),
+                            key=full_key,
+                            old_value=None,
+                            new_value=new_value,
+                            source=source,
+                        )
+                    )
                 elif isinstance(new_value, dict) and isinstance(old_dict[key], dict):
                     # Recursive check for nested dicts
                     changes.extend(find_changes(old_dict[key], new_value, full_key))
                 elif old_dict[key] != new_value:
                     # Modified value
-                    changes.append(ConfigChange(
-                        timestamp=datetime.now(),
-                        key=full_key,
-                        old_value=old_dict[key],
-                        new_value=new_value,
-                        source=source
-                    ))
+                    changes.append(
+                        ConfigChange(
+                            timestamp=datetime.now(),
+                            key=full_key,
+                            old_value=old_dict[key],
+                            new_value=new_value,
+                            source=source,
+                        )
+                    )
 
             # Check for deleted values
             for key, old_value in old_dict.items():
                 full_key = f"{prefix}.{key}" if prefix else key
                 if key not in new_dict:
-                    changes.append(ConfigChange(
-                        timestamp=datetime.now(),
-                        key=full_key,
-                        old_value=old_value,
-                        new_value=None,
-                        source=source
-                    ))
+                    changes.append(
+                        ConfigChange(
+                            timestamp=datetime.now(),
+                            key=full_key,
+                            old_value=old_value,
+                            new_value=None,
+                            source=source,
+                        )
+                    )
 
             return changes
 
@@ -353,7 +461,9 @@ class ConfigManager:
             except Exception as e:
                 self.logger.error(f"Error in config change callback: {e}")
 
-    async def save_config(self, config: Optional[Dict[str, Any]] = None, backup: bool = True) -> bool:
+    async def save_config(
+        self, config: Optional[Dict[str, Any]] = None, backup: bool = True
+    ) -> bool:
         """Save configuration to primary config file."""
         with self.lock:
             try:
@@ -372,13 +482,13 @@ class ConfigManager:
                         raise ConfigValidationError(
                             field="configuration",
                             value="invalid",
-                            expected="valid configuration"
+                            expected="valid configuration",
                         )
 
                 # Save to file
                 self.primary_config_path.parent.mkdir(parents=True, exist_ok=True)
 
-                with open(self.primary_config_path, 'w', encoding='utf-8') as f:
+                with open(self.primary_config_path, "w", encoding="utf-8") as f:
                     yaml.dump(config_to_save, f, default_flow_style=False, indent=2)
 
                 # Update internal state
@@ -389,7 +499,9 @@ class ConfigManager:
                 self._track_config_changes(old_config, config_to_save, "save")
 
                 # Update file hash
-                self.file_hashes[self.primary_config_path.name] = self._calculate_file_hash(self.primary_config_path)
+                self.file_hashes[
+                    self.primary_config_path.name
+                ] = self._calculate_file_hash(self.primary_config_path)
 
                 self.logger.info(f"Configuration saved to {self.primary_config_path}")
                 return True
@@ -421,7 +533,7 @@ class ConfigManager:
                         key=key,
                         old_value=get_nested_value(old_config, key),
                         new_value=value,
-                        source="api"
+                        source="api",
                     )
                     self.change_history.append(change)
                     self._notify_change_callbacks(change)
@@ -434,9 +546,7 @@ class ConfigManager:
                     return True
                 else:
                     raise ConfigValidationError(
-                        field=key,
-                        value=value,
-                        expected="valid key path"
+                        field=key, value=value, expected="valid key path"
                     )
 
             except Exception as e:
@@ -453,9 +563,7 @@ class ConfigManager:
                 for key, value in updates.items():
                     if not set_nested_value(self.config, key, value):
                         raise ConfigValidationError(
-                            field=key,
-                            value=value,
-                            expected="valid key path"
+                            field=key, value=value, expected="valid key path"
                         )
 
                 # Track changes
@@ -482,10 +590,7 @@ class ConfigManager:
         self.watch_enabled = True
         self.stop_watching.clear()
 
-        self.watch_thread = threading.Thread(
-            target=self._watch_files,
-            daemon=True
-        )
+        self.watch_thread = threading.Thread(target=self._watch_files, daemon=True)
         self.watch_thread.start()
 
         self.logger.info("Started configuration file watching")
@@ -523,8 +628,7 @@ class ConfigManager:
                         # Reload configuration
                         try:
                             asyncio.run_coroutine_threadsafe(
-                                self.load_config(),
-                                asyncio.get_event_loop()
+                                self.load_config(), asyncio.get_event_loop()
                             ).result(timeout=10.0)
                         except Exception as e:
                             self.logger.error(f"Failed to reload configuration: {e}")
@@ -548,7 +652,9 @@ class ConfigManager:
     def get_change_history(self, limit: int = 100) -> List[Dict[str, Any]]:
         """Get configuration change history."""
         with self.lock:
-            recent_changes = self.change_history[-limit:] if limit else self.change_history
+            recent_changes = (
+                self.change_history[-limit:] if limit else self.change_history
+            )
 
             return [
                 {
@@ -557,7 +663,7 @@ class ConfigManager:
                     "old_value": change.old_value,
                     "new_value": change.new_value,
                     "source": change.source,
-                    "user": change.user
+                    "user": change.user,
                 }
                 for change in recent_changes
             ]
@@ -572,7 +678,9 @@ class ConfigManager:
         validation_errors = self.validator.validate(config_to_validate)
         return [f"{error.field}: {error.message}" for error in validation_errors]
 
-    def export_config(self, format: str = "yaml", include_defaults: bool = False) -> str:
+    def export_config(
+        self, format: str = "yaml", include_defaults: bool = False
+    ) -> str:
         """Export configuration to string."""
         with self.lock:
             config_to_export = self.config
@@ -580,7 +688,9 @@ class ConfigManager:
             if not include_defaults:
                 # Remove default values to make export cleaner
                 default_config = get_default_user_config()
-                config_to_export = self._remove_default_values(self.config, default_config)
+                config_to_export = self._remove_default_values(
+                    self.config, default_config
+                )
 
             if format.lower() == "yaml":
                 return yaml.dump(config_to_export, default_flow_style=False, indent=2)
@@ -589,7 +699,9 @@ class ConfigManager:
             else:
                 raise ConfigurationError(f"Unsupported export format: {format}")
 
-    def _remove_default_values(self, config: Dict[str, Any], defaults: Dict[str, Any]) -> Dict[str, Any]:
+    def _remove_default_values(
+        self, config: Dict[str, Any], defaults: Dict[str, Any]
+    ) -> Dict[str, Any]:
         """Remove values that match defaults."""
         result = {}
 
@@ -605,7 +717,9 @@ class ConfigManager:
 
         return result
 
-    async def import_config(self, config_data: str, format: str = "yaml", merge: bool = True) -> bool:
+    async def import_config(
+        self, config_data: str, format: str = "yaml", merge: bool = True
+    ) -> bool:
         """Import configuration from string."""
         try:
             if format.lower() == "yaml":
@@ -643,7 +757,7 @@ class ConfigManager:
                         "priority": source.priority,
                         "watch": source.watch,
                         "required": source.required,
-                        "last_hash": self.file_hashes.get(source.path.name)
+                        "last_hash": self.file_hashes.get(source.path.name),
                     }
                     for source in self.config_sources
                 ],
@@ -651,7 +765,7 @@ class ConfigManager:
                 "watch_enabled": self.watch_enabled,
                 "change_count": len(self.change_history),
                 "callbacks_count": len(self.change_callbacks),
-                "last_loaded": datetime.now().isoformat()
+                "last_loaded": datetime.now().isoformat(),
             }
 
     async def reset_to_defaults(self, backup: bool = True) -> bool:
@@ -698,10 +812,10 @@ async def load_config_file(file_path: Union[str, Path]) -> Dict[str, Any]:
         raise ConfigFileError(str(file_path), "File not found")
 
     try:
-        with open(file_path, 'r', encoding='utf-8') as f:
-            if file_path.suffix.lower() in ['.yaml', '.yml']:
+        with open(file_path, "r", encoding="utf-8") as f:
+            if file_path.suffix.lower() in [".yaml", ".yml"]:
                 return yaml.safe_load(f) or {}
-            elif file_path.suffix.lower() == '.json':
+            elif file_path.suffix.lower() == ".json":
                 return json.load(f) or {}
             else:
                 raise ConfigFileError(str(file_path), "Unsupported file format")
@@ -709,7 +823,9 @@ async def load_config_file(file_path: Union[str, Path]) -> Dict[str, Any]:
         raise ConfigFileError(str(file_path), f"Failed to load file: {e}")
 
 
-async def save_config_file(file_path: Union[str, Path], config: Dict[str, Any], backup: bool = True):
+async def save_config_file(
+    file_path: Union[str, Path], config: Dict[str, Any], backup: bool = True
+):
     """Save configuration to a file."""
     file_path = Path(file_path)
 
@@ -719,10 +835,10 @@ async def save_config_file(file_path: Union[str, Path], config: Dict[str, Any], 
     file_path.parent.mkdir(parents=True, exist_ok=True)
 
     try:
-        with open(file_path, 'w', encoding='utf-8') as f:
-            if file_path.suffix.lower() in ['.yaml', '.yml']:
+        with open(file_path, "w", encoding="utf-8") as f:
+            if file_path.suffix.lower() in [".yaml", ".yml"]:
                 yaml.dump(config, f, default_flow_style=False, indent=2)
-            elif file_path.suffix.lower() == '.json':
+            elif file_path.suffix.lower() == ".json":
                 json.dump(config, f, indent=2)
             else:
                 raise ConfigFileError(str(file_path), "Unsupported file format")

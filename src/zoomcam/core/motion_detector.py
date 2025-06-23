@@ -20,6 +20,7 @@ from zoomcam.utils.exceptions import MotionDetectionError
 @dataclass
 class MotionZone:
     """Represents a detected motion zone."""
+
     id: str
     bbox: Tuple[int, int, int, int]  # x, y, width, height
     area: int
@@ -34,6 +35,7 @@ class MotionZone:
 @dataclass
 class MotionFrame:
     """Motion detection result for a frame."""
+
     frame_number: int
     timestamp: datetime
     zones: List[MotionZone]
@@ -70,15 +72,12 @@ class MotionDetector:
 
         # Background subtractor
         self.bg_subtractor = cv2.createBackgroundSubtractorMOG2(
-            history=500,
-            varThreshold=16,
-            detectShadows=True
+            history=500, varThreshold=16, detectShadows=True
         )
 
         # Morphological kernels
         self.kernel_noise = cv2.getStructuringElement(
-            cv2.MORPH_ELLIPSE,
-            (self.noise_filter_size, self.noise_filter_size)
+            cv2.MORPH_ELLIPSE, (self.noise_filter_size, self.noise_filter_size)
         )
         self.kernel_dilate = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (7, 7))
         self.kernel_erode = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (3, 3))
@@ -134,7 +133,9 @@ class MotionDetector:
 
             # Limit number of zones
             if len(merged_zones) > self.max_zones:
-                merged_zones = sorted(merged_zones, key=lambda z: z.area, reverse=True)[:self.max_zones]
+                merged_zones = sorted(merged_zones, key=lambda z: z.area, reverse=True)[
+                    : self.max_zones
+                ]
 
             # Calculate frame-level metrics
             total_motion_area = sum(zone.area for zone in merged_zones)
@@ -148,7 +149,7 @@ class MotionDetector:
                 zones=merged_zones,
                 total_motion_area=total_motion_area,
                 motion_percentage=motion_percentage,
-                background_stability=self._calculate_background_stability()
+                background_stability=self._calculate_background_stability(),
             )
 
             # Update history
@@ -165,7 +166,7 @@ class MotionDetector:
                     "confidence": zone.confidence,
                     "centroid": zone.centroid,
                     "priority": self._calculate_zone_priority(zone),
-                    "timestamp": zone.last_updated.isoformat()
+                    "timestamp": zone.last_updated.isoformat(),
                 }
                 zone_dicts.append(zone_dict)
 
@@ -198,7 +199,7 @@ class MotionDetector:
         """Apply ignore zones to mask."""
         for zone in self.ignore_zones:
             x, y, w, h = zone
-            mask[y:y + h, x:x + w] = 0
+            mask[y : y + h, x : x + w] = 0
         return mask
 
     def _clean_mask(self, mask: np.ndarray) -> np.ndarray:
@@ -217,7 +218,9 @@ class MotionDetector:
 
         return mask
 
-    def _find_motion_zones(self, mask: np.ndarray, frame_shape: Tuple[int, int]) -> List[MotionZone]:
+    def _find_motion_zones(
+        self, mask: np.ndarray, frame_shape: Tuple[int, int]
+    ) -> List[MotionZone]:
         """Find motion zones from cleaned mask."""
         # Find contours
         contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
@@ -270,7 +273,7 @@ class MotionDetector:
                 centroid=(cx, cy),
                 contour=contour,
                 first_detected=current_time,
-                last_updated=current_time
+                last_updated=current_time,
             )
 
             motion_zones.append(zone)
@@ -299,8 +302,8 @@ class MotionDetector:
 
                 # Calculate distance between centroids
                 dist = np.sqrt(
-                    (zone1.centroid[0] - zone2.centroid[0]) ** 2 +
-                    (zone1.centroid[1] - zone2.centroid[1]) ** 2
+                    (zone1.centroid[0] - zone2.centroid[0]) ** 2
+                    + (zone1.centroid[1] - zone2.centroid[1]) ** 2
                 )
 
                 if dist < self.zone_merge_distance:
@@ -334,8 +337,12 @@ class MotionDetector:
         # Calculate weighted centroid
         total_weight = sum(zone.area for zone in zones)
         if total_weight > 0:
-            weighted_cx = sum(zone.centroid[0] * zone.area for zone in zones) / total_weight
-            weighted_cy = sum(zone.centroid[1] * zone.area for zone in zones) / total_weight
+            weighted_cx = (
+                sum(zone.centroid[0] * zone.area for zone in zones) / total_weight
+            )
+            weighted_cy = (
+                sum(zone.centroid[1] * zone.area for zone in zones) / total_weight
+            )
             combined_centroid = (int(weighted_cx), int(weighted_cy))
         else:
             combined_centroid = zones[0].centroid
@@ -350,12 +357,14 @@ class MotionDetector:
             id=merged_id,
             bbox=combined_bbox,
             area=total_area,
-            activity_level=min(1.0, avg_activity * 1.2),  # Slight boost for merged zones
+            activity_level=min(
+                1.0, avg_activity * 1.2
+            ),  # Slight boost for merged zones
             confidence=avg_confidence,
             centroid=combined_centroid,
             contour=zones[0].contour,  # Use first contour as representative
             first_detected=earliest_time,
-            last_updated=datetime.now()
+            last_updated=datetime.now(),
         )
 
     def _calculate_zone_priority(self, zone: MotionZone) -> int:
@@ -408,7 +417,7 @@ class MotionDetector:
             self.bg_subtractor = cv2.createBackgroundSubtractorMOG2(
                 history=new_config.get("history", 500),
                 varThreshold=new_config.get("varThreshold", 16),
-                detectShadows=True
+                detectShadows=True,
             )
 
         logging.info(f"Updated motion detection config for camera {self.camera_id}")
@@ -423,7 +432,9 @@ class MotionDetector:
 
             avg_motion = np.mean([frame.motion_percentage for frame in recent_frames])
             avg_zones = np.mean([len(frame.zones) for frame in recent_frames])
-            avg_processing_time = np.mean(self.processing_times) if self.processing_times else 0
+            avg_processing_time = (
+                np.mean(self.processing_times) if self.processing_times else 0
+            )
 
             return {
                 "camera_id": self.camera_id,
@@ -436,17 +447,15 @@ class MotionDetector:
                     "sensitivity": self.sensitivity,
                     "min_area": self.min_area,
                     "max_zones": self.max_zones,
-                    "ignore_zones_count": len(self.ignore_zones)
-                }
+                    "ignore_zones_count": len(self.ignore_zones),
+                },
             }
 
     def reset_background_model(self) -> None:
         """Reset the background subtraction model."""
         logging.info(f"Resetting background model for camera {self.camera_id}")
         self.bg_subtractor = cv2.createBackgroundSubtractorMOG2(
-            history=500,
-            varThreshold=16,
-            detectShadows=True
+            history=500, varThreshold=16, detectShadows=True
         )
 
     def add_ignore_zone(self, bbox: Tuple[int, int, int, int]) -> None:

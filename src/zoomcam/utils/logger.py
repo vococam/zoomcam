@@ -32,6 +32,7 @@ except ImportError:
 @dataclass
 class LogContext:
     """Logging context for structured logging."""
+
     component: str
     camera_id: Optional[str] = None
     session_id: Optional[str] = None
@@ -42,6 +43,7 @@ class LogContext:
 @dataclass
 class PerformanceMetric:
     """Performance metric for logging."""
+
     name: str
     value: float
     unit: str
@@ -60,74 +62,117 @@ class ZoomCamFormatter(logging.Formatter):
             super().__init__()
         else:
             format_str = (
-                '%(asctime)s | %(levelname)-8s | %(name)-20s | '
-                '%(camera_id)s | %(component)s | %(message)s'
+                "%(asctime)s | %(levelname)-8s | %(name)-20s | "
+                "%(camera_id)s | %(component)s | %(message)s"
             )
-            super().__init__(format_str, datefmt='%Y-%m-%d %H:%M:%S')
+            super().__init__(format_str, datefmt="%Y-%m-%d %H:%M:%S")
 
     def format(self, record: logging.LogRecord) -> str:
+        # Create a copy of the record to avoid modifying the original
+        record_copy = logging.LogRecord(
+            name=record.name,
+            level=record.levelno,
+            pathname=record.pathname,
+            lineno=record.lineno,
+            msg=record.msg,
+            args=record.args,
+            exc_info=record.exc_info,
+            func=record.funcName
+        )
+        
+        # Copy over additional attributes
+        for key, value in record.__dict__.items():
+            if key not in ('name', 'levelno', 'pathname', 'lineno', 'msg', 'args', 'exc_info', 'funcName'):
+                setattr(record_copy, key, value)
+        
         # Add default values for missing attributes
-        if not hasattr(record, 'camera_id'):
-            record.camera_id = getattr(record, 'camera_id', 'system')
-        if not hasattr(record, 'component'):
-            record.component = getattr(record, 'component', record.name)
-        if not hasattr(record, 'operation'):
-            record.operation = getattr(record, 'operation', 'general')
+        if not hasattr(record_copy, 'camera_id'):
+            record_copy.camera_id = 'system'
+        if not hasattr(record_copy, 'component'):
+            record_copy.component = record_copy.name
+        if not hasattr(record_copy, 'operation'):
+            record_copy.operation = 'general'
 
         # Add performance data if available
         if self.include_performance and PSUTIL_AVAILABLE:
-            if not hasattr(record, 'cpu_percent'):
-                record.cpu_percent = psutil.cpu_percent()
-            if not hasattr(record, 'memory_percent'):
-                record.memory_percent = psutil.virtual_memory().percent
+            if not hasattr(record_copy, 'cpu_percent'):
+                record_copy.cpu_percent = psutil.cpu_percent()
+            if not hasattr(record_copy, 'memory_percent'):
+                record_copy.memory_percent = psutil.virtual_memory().percent
 
-        if self.json_format:
-            return self._format_json(record)
-        else:
-            return super().format(record)
+        try:
+            if self.json_format:
+                return self._format_json(record_copy)
+            else:
+                return super().format(record_copy)
+        except Exception as e:
+            # Fallback to basic formatting if our custom formatting fails
+            return f"{record.levelname}: {record.msg}"
 
     def _format_json(self, record: logging.LogRecord) -> str:
         """Format log record as JSON."""
         log_data = {
-            'timestamp': datetime.fromtimestamp(record.created).isoformat(),
-            'level': record.levelname,
-            'logger': record.name,
-            'message': record.getMessage(),
-            'component': getattr(record, 'component', record.name),
-            'camera_id': getattr(record, 'camera_id', None),
-            'operation': getattr(record, 'operation', None),
-            'module': record.module,
-            'function': record.funcName,
-            'line': record.lineno
+            "timestamp": datetime.fromtimestamp(record.created).isoformat(),
+            "level": record.levelname,
+            "logger": record.name,
+            "message": record.getMessage(),
+            "component": getattr(record, "component", record.name),
+            "camera_id": getattr(record, "camera_id", None),
+            "operation": getattr(record, "operation", None),
+            "module": record.module,
+            "function": record.funcName,
+            "line": record.lineno,
         }
 
         # Add performance data
         if self.include_performance:
-            log_data['performance'] = {
-                'cpu_percent': getattr(record, 'cpu_percent', None),
-                'memory_percent': getattr(record, 'memory_percent', None)
+            log_data["performance"] = {
+                "cpu_percent": getattr(record, "cpu_percent", None),
+                "memory_percent": getattr(record, "memory_percent", None),
             }
 
         # Add exception info if present
         if record.exc_info:
-            log_data['exception'] = {
-                'type': record.exc_info[0].__name__,
-                'message': str(record.exc_info[1]),
-                'traceback': traceback.format_exception(*record.exc_info)
+            log_data["exception"] = {
+                "type": record.exc_info[0].__name__,
+                "message": str(record.exc_info[1]),
+                "traceback": traceback.format_exception(*record.exc_info),
             }
 
         # Add any extra attributes
         extra_attrs = {}
         for key, value in record.__dict__.items():
-            if key not in ['name', 'msg', 'args', 'levelname', 'levelno', 'pathname',
-                           'filename', 'module', 'lineno', 'funcName', 'created',
-                           'msecs', 'relativeCreated', 'thread', 'threadName',
-                           'processName', 'process', 'exc_info', 'exc_text', 'stack_info',
-                           'component', 'camera_id', 'operation', 'cpu_percent', 'memory_percent']:
+            if key not in [
+                "name",
+                "msg",
+                "args",
+                "levelname",
+                "levelno",
+                "pathname",
+                "filename",
+                "module",
+                "lineno",
+                "funcName",
+                "created",
+                "msecs",
+                "relativeCreated",
+                "thread",
+                "threadName",
+                "processName",
+                "process",
+                "exc_info",
+                "exc_text",
+                "stack_info",
+                "component",
+                "camera_id",
+                "operation",
+                "cpu_percent",
+                "memory_percent",
+            ]:
                 extra_attrs[key] = value
 
         if extra_attrs:
-            log_data['extra'] = extra_attrs
+            log_data["extra"] = extra_attrs
 
         return json.dumps(log_data, default=str)
 
@@ -152,12 +197,12 @@ class PerformanceLogHandler(logging.Handler):
         """Load existing performance data."""
         try:
             if self.performance_file.exists():
-                with open(self.performance_file, 'r') as f:
+                with open(self.performance_file, "r") as f:
                     self.performance_data = json.load(f)
 
                 # Keep only recent entries
                 if len(self.performance_data) > self.max_entries:
-                    self.performance_data = self.performance_data[-self.max_entries:]
+                    self.performance_data = self.performance_data[-self.max_entries :]
         except Exception as e:
             logging.getLogger(__name__).warning(f"Failed to load performance data: {e}")
             self.performance_data = []
@@ -165,21 +210,27 @@ class PerformanceLogHandler(logging.Handler):
     def emit(self, record: logging.LogRecord):
         """Emit performance log record."""
         try:
-            if hasattr(record, 'performance_metric'):
+            if hasattr(record, "performance_metric"):
                 metric = record.performance_metric
 
                 with self.lock:
-                    self.performance_data.append({
-                        'timestamp': datetime.now().isoformat(),
-                        'component': getattr(record, 'component', 'unknown'),
-                        'camera_id': getattr(record, 'camera_id', None),
-                        'metric': asdict(metric) if hasattr(metric, '__dataclass_fields__') else metric,
-                        'level': record.levelname
-                    })
+                    self.performance_data.append(
+                        {
+                            "timestamp": datetime.now().isoformat(),
+                            "component": getattr(record, "component", "unknown"),
+                            "camera_id": getattr(record, "camera_id", None),
+                            "metric": asdict(metric)
+                            if hasattr(metric, "__dataclass_fields__")
+                            else metric,
+                            "level": record.levelname,
+                        }
+                    )
 
                     # Trim if too many entries
                     if len(self.performance_data) > self.max_entries:
-                        self.performance_data = self.performance_data[-self.max_entries:]
+                        self.performance_data = self.performance_data[
+                            -self.max_entries :
+                        ]
 
                     # Save periodically
                     if len(self.performance_data) % 100 == 0:
@@ -191,7 +242,7 @@ class PerformanceLogHandler(logging.Handler):
     def _save_data(self):
         """Save performance data to file."""
         try:
-            with open(self.performance_file, 'w') as f:
+            with open(self.performance_file, "w") as f:
                 json.dump(self.performance_data, f, indent=2, default=str)
         except Exception as e:
             print(f"Failed to save performance data: {e}", file=sys.stderr)
@@ -259,10 +310,10 @@ class ZoomCamLogger:
     def _log_with_context(self, level: int, message: str, **kwargs):
         """Log with context information."""
         extra = {
-            'component': self.context.component,
-            'camera_id': self.context.camera_id,
-            'operation': self.context.operation,
-            **kwargs
+            "component": self.context.component,
+            "camera_id": self.context.camera_id,
+            "operation": self.context.operation,
+            **kwargs,
         }
 
         # Add performance data if available
@@ -296,22 +347,24 @@ class ZoomCamLogger:
         self.performance_metrics.append(metric)
 
         extra = {
-            'component': self.context.component,
-            'camera_id': self.context.camera_id,
-            'performance_metric': metric
+            "component": self.context.component,
+            "camera_id": self.context.camera_id,
+            "performance_metric": metric,
         }
 
         message = f"Performance: {metric.name} = {metric.value} {metric.unit}"
         self.logger.log(level, message, extra=extra)
 
-    def with_context(self, **context_updates) -> 'ZoomCamLogger':
+    def with_context(self, **context_updates) -> "ZoomCamLogger":
         """Create new logger with updated context."""
         new_context = LogContext(
-            component=context_updates.get('component', self.context.component),
-            camera_id=context_updates.get('camera_id', self.context.camera_id),
-            session_id=context_updates.get('session_id', self.context.session_id),
-            operation=context_updates.get('operation', self.context.operation),
-            performance_data=context_updates.get('performance_data', self.context.performance_data)
+            component=context_updates.get("component", self.context.component),
+            camera_id=context_updates.get("camera_id", self.context.camera_id),
+            session_id=context_updates.get("session_id", self.context.session_id),
+            operation=context_updates.get("operation", self.context.operation),
+            performance_data=context_updates.get(
+                "performance_data", self.context.performance_data
+            ),
         )
 
         return ZoomCamLogger(self.logger.name, new_context)
@@ -336,10 +389,12 @@ class ZoomCamLogger:
                     name=f"{operation_name}_duration",
                     value=duration,
                     unit="seconds",
-                    timestamp=datetime.now()
+                    timestamp=datetime.now(),
                 )
             )
-            operation_logger.debug(f"Completed operation: {operation_name} in {duration:.3f}s")
+            operation_logger.debug(
+                f"Completed operation: {operation_name} in {duration:.3f}s"
+            )
 
     @contextmanager
     def camera_context(self, camera_id: str):
@@ -362,7 +417,7 @@ class LogManager:
         return cls._instance
 
     def __init__(self):
-        if hasattr(self, '_initialized'):
+        if hasattr(self, "_initialized"):
             return
 
         self._initialized = True
@@ -372,14 +427,14 @@ class LogManager:
         self.config = {}
 
     def setup_logging(
-            self,
-            level: Union[str, int] = logging.INFO,
-            log_file: Optional[str] = None,
-            performance_file: Optional[str] = None,
-            json_format: bool = False,
-            async_logging: bool = True,
-            max_file_size: int = 10 * 1024 * 1024,  # 10MB
-            backup_count: int = 5
+        self,
+        level: Union[str, int] = logging.INFO,
+        log_file: Optional[str] = None,
+        performance_file: Optional[str] = None,
+        json_format: bool = False,
+        async_logging: bool = True,
+        max_file_size: int = 10 * 1024 * 1024,  # 10MB
+        backup_count: int = 5,
     ):
         """Setup logging configuration."""
 
@@ -396,13 +451,11 @@ class LogManager:
 
         # Create formatters
         console_formatter = ZoomCamFormatter(
-            include_performance=True,
-            json_format=False
+            include_performance=True, json_format=False
         )
 
         file_formatter = ZoomCamFormatter(
-            include_performance=True,
-            json_format=json_format
+            include_performance=True, json_format=json_format
         )
 
         # Console handler
@@ -421,9 +474,7 @@ class LogManager:
             log_path = self.log_directory / log_file
 
             file_handler = logging.handlers.RotatingFileHandler(
-                log_path,
-                maxBytes=max_file_size,
-                backupCount=backup_count
+                log_path, maxBytes=max_file_size, backupCount=backup_count
             )
             file_handler.setFormatter(file_formatter)
             file_handler.setLevel(logging.DEBUG)  # File gets all levels
@@ -443,9 +494,7 @@ class LogManager:
         # Error file handler (separate file for errors)
         error_file = self.log_directory / "error.log"
         error_handler = logging.handlers.RotatingFileHandler(
-            error_file,
-            maxBytes=max_file_size,
-            backupCount=backup_count
+            error_file, maxBytes=max_file_size, backupCount=backup_count
         )
         error_handler.setFormatter(file_formatter)
         error_handler.setLevel(logging.ERROR)
@@ -462,24 +511,30 @@ class LogManager:
 
         # Store configuration
         self.config = {
-            'level': level,
-            'log_file': log_file,
-            'performance_file': performance_file,
-            'json_format': json_format,
-            'async_logging': async_logging
+            "level": level,
+            "log_file": log_file,
+            "performance_file": performance_file,
+            "json_format": json_format,
+            "async_logging": async_logging,
         }
 
         # Log setup completion
-        setup_logger = self.get_logger('logging_setup')
-        setup_logger.info("Logging system initialized",
-                          log_level=logging.getLevelName(level),
-                          handlers_count=len(self.handlers))
+        setup_logger = self.get_logger("logging_setup")
+        setup_logger.info(
+            "Logging system initialized",
+            log_level=logging.getLevelName(level),
+            handlers_count=len(self.handlers),
+        )
 
-    def get_logger(self, name: str, context: Optional[LogContext] = None) -> ZoomCamLogger:
+    def get_logger(
+        self, name: str, context: Optional[LogContext] = None
+    ) -> ZoomCamLogger:
         """Get a logger with optional context."""
         return ZoomCamLogger(name, context)
 
-    def get_camera_logger(self, camera_id: str, component: str = "camera") -> ZoomCamLogger:
+    def get_camera_logger(
+        self, camera_id: str, component: str = "camera"
+    ) -> ZoomCamLogger:
         """Get a camera-specific logger."""
         context = LogContext(component=component, camera_id=camera_id)
         return ZoomCamLogger(f"camera.{camera_id}", context)
@@ -492,8 +547,9 @@ class LogManager:
         cutoff_time = datetime.now() - timedelta(hours=hours)
 
         return [
-            metric for metric in self.performance_handler.performance_data
-            if datetime.fromisoformat(metric['timestamp']) > cutoff_time
+            metric
+            for metric in self.performance_handler.performance_data
+            if datetime.fromisoformat(metric["timestamp"]) > cutoff_time
         ]
 
     def flush_logs(self):
@@ -547,20 +603,20 @@ def shutdown_logging():
 
 
 # Performance logging utilities
-def log_performance(logger: ZoomCamLogger, name: str, value: float, unit: str, **context):
+def log_performance(
+    logger: ZoomCamLogger, name: str, value: float, unit: str, **context
+):
     """Log a performance metric."""
     metric = PerformanceMetric(
-        name=name,
-        value=value,
-        unit=unit,
-        timestamp=datetime.now(),
-        context=context
+        name=name, value=value, unit=unit, timestamp=datetime.now(), context=context
     )
     logger.performance(metric)
 
 
 @contextmanager
-def timed_operation(logger: ZoomCamLogger, operation_name: str, log_level: int = logging.INFO):
+def timed_operation(
+    logger: ZoomCamLogger, operation_name: str, log_level: int = logging.INFO
+):
     """Context manager for timing operations."""
     start_time = time.perf_counter()
 
@@ -572,7 +628,7 @@ def timed_operation(logger: ZoomCamLogger, operation_name: str, log_level: int =
             name=f"{operation_name}_duration",
             value=duration,
             unit="seconds",
-            timestamp=datetime.now()
+            timestamp=datetime.now(),
         )
         logger.performance(metric, log_level)
 
@@ -584,7 +640,7 @@ def log_exception(logger: ZoomCamLogger, operation: str, exception: Exception):
         f"Exception in {operation}: {type(exception).__name__}: {exception}",
         exc_info=True,
         operation=operation,
-        exception_type=type(exception).__name__
+        exception_type=type(exception).__name__,
     )
 
 
@@ -601,8 +657,8 @@ def log_memory_usage(logger: ZoomCamLogger):
                 timestamp=datetime.now(),
                 context={
                     "available_mb": memory.available / (1024 * 1024),
-                    "used_mb": memory.used / (1024 * 1024)
-                }
+                    "used_mb": memory.used / (1024 * 1024),
+                },
             )
         )
 
@@ -616,7 +672,7 @@ def log_cpu_usage(logger: ZoomCamLogger):
                 name="cpu_usage",
                 value=cpu_percent,
                 unit="percent",
-                timestamp=datetime.now()
+                timestamp=datetime.now(),
             )
         )
 
@@ -627,7 +683,7 @@ if __name__ == "__main__":
         level="DEBUG",
         log_file="zoomcam.log",
         performance_file="performance.json",
-        json_format=False
+        json_format=False,
     )
 
     # Test logging

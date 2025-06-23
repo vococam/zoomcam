@@ -38,6 +38,7 @@ except ImportError:
 @dataclass
 class PerformanceSnapshot:
     """Performance metrics snapshot."""
+
     timestamp: datetime
     cpu_percent: float
     memory_percent: float
@@ -59,6 +60,7 @@ class PerformanceSnapshot:
 @dataclass
 class ComponentMetrics:
     """Performance metrics for a specific component."""
+
     component_name: str
     operation_counts: Dict[str, int] = field(default_factory=dict)
     operation_times: Dict[str, deque] = field(default_factory=dict)
@@ -71,6 +73,7 @@ class ComponentMetrics:
 @dataclass
 class OptimizationSuggestion:
     """Performance optimization suggestion."""
+
     component: str
     issue: str
     suggestion: str
@@ -116,9 +119,7 @@ class PerformanceProfiler:
         self.stop_event.clear()
 
         self.background_thread = threading.Thread(
-            target=self._profiling_loop,
-            args=(interval,),
-            daemon=True
+            target=self._profiling_loop, args=(interval,), daemon=True
         )
         self.background_thread.start()
 
@@ -171,7 +172,9 @@ class PerformanceProfiler:
             try:
                 io_counters = psutil.disk_io_counters()
                 disk_read = io_counters.read_bytes / (1024 * 1024) if io_counters else 0
-                disk_write = io_counters.write_bytes / (1024 * 1024) if io_counters else 0
+                disk_write = (
+                    io_counters.write_bytes / (1024 * 1024) if io_counters else 0
+                )
             except Exception:
                 disk_read = disk_write = 0
 
@@ -198,7 +201,7 @@ class PerformanceProfiler:
                 gpu_usage=gpu_usage,
                 gpu_memory_mb=gpu_memory,
                 process_count=len(psutil.pids()),
-                thread_count=process.num_threads()
+                thread_count=process.num_threads(),
             )
 
             return snapshot
@@ -211,6 +214,7 @@ class PerformanceProfiler:
         """Get GPU usage and memory metrics."""
         try:
             import pynvml
+
             pynvml.nvmlInit()
 
             handle = pynvml.nvmlDeviceGetHandleByIndex(0)
@@ -244,7 +248,7 @@ class PerformanceProfiler:
                 self._add_performance_alert(
                     "high_cpu",
                     f"High CPU usage: {snapshot.cpu_percent:.1f}%",
-                    "warning"
+                    "warning",
                 )
 
                 if snapshot.cpu_percent > 95:
@@ -254,20 +258,22 @@ class PerformanceProfiler:
                 self._add_performance_alert(
                     "high_memory",
                     f"High memory usage: {snapshot.memory_percent:.1f}%",
-                    "warning"
+                    "warning",
                 )
 
                 if snapshot.memory_percent > 95:
                     self._generate_memory_optimization()
 
             # Check for disk I/O issues
-            if hasattr(self, '_last_snapshot') and self._last_snapshot:
-                disk_write_rate = snapshot.disk_io_write_mb - self._last_snapshot.disk_io_write_mb
+            if hasattr(self, "_last_snapshot") and self._last_snapshot:
+                disk_write_rate = (
+                    snapshot.disk_io_write_mb - self._last_snapshot.disk_io_write_mb
+                )
                 if disk_write_rate > 50:  # 50MB/s write rate
                     self._add_performance_alert(
                         "high_disk_io",
                         f"High disk write rate: {disk_write_rate:.1f} MB/s",
-                        "info"
+                        "info",
                     )
 
             self._last_snapshot = snapshot
@@ -282,13 +288,15 @@ class PerformanceProfiler:
             "message": message,
             "severity": severity,
             "timestamp": datetime.now(),
-            "count": 1
+            "count": 1,
         }
 
         # Check if we already have this alert recently
         for existing_alert in self.performance_alerts[-10:]:
-            if (existing_alert["type"] == alert_type and
-                    (datetime.now() - existing_alert["timestamp"]).seconds < 60):
+            if (
+                existing_alert["type"] == alert_type
+                and (datetime.now() - existing_alert["timestamp"]).seconds < 60
+            ):
                 existing_alert["count"] += 1
                 return
 
@@ -307,7 +315,7 @@ class PerformanceProfiler:
             impact="high",
             effort="medium",
             automated=True,
-            priority=1
+            priority=1,
         )
         self._add_optimization_suggestion(suggestion)
 
@@ -320,7 +328,7 @@ class PerformanceProfiler:
             impact="high",
             effort="low",
             automated=True,
-            priority=1
+            priority=1,
         )
         self._add_optimization_suggestion(suggestion)
 
@@ -328,8 +336,10 @@ class PerformanceProfiler:
         """Add optimization suggestion."""
         # Avoid duplicate suggestions
         for existing in self.optimization_suggestions:
-            if (existing.component == suggestion.component and
-                    existing.issue == suggestion.issue):
+            if (
+                existing.component == suggestion.component
+                and existing.issue == suggestion.issue
+            ):
                 return
 
         self.optimization_suggestions.append(suggestion)
@@ -339,11 +349,7 @@ class PerformanceProfiler:
             self.optimization_suggestions = self.optimization_suggestions[-50:]
 
     def record_component_operation(
-            self,
-            component: str,
-            operation: str,
-            duration: float,
-            success: bool = True
+        self, component: str, operation: str, duration: float, success: bool = True
     ):
         """Record component operation metrics."""
         with self.lock:
@@ -353,7 +359,9 @@ class PerformanceProfiler:
             metrics = self.component_metrics[component]
 
             # Update operation counts
-            metrics.operation_counts[operation] = metrics.operation_counts.get(operation, 0) + 1
+            metrics.operation_counts[operation] = (
+                metrics.operation_counts.get(operation, 0) + 1
+            )
 
             # Update operation times
             if operation not in metrics.operation_times:
@@ -363,7 +371,9 @@ class PerformanceProfiler:
             # Update error counts
             if not success:
                 error_key = f"{operation}_errors"
-                metrics.error_counts[error_key] = metrics.error_counts.get(error_key, 0) + 1
+                metrics.error_counts[error_key] = (
+                    metrics.error_counts.get(error_key, 0) + 1
+                )
 
             metrics.last_update = datetime.now()
 
@@ -372,18 +382,19 @@ class PerformanceProfiler:
         cutoff_time = datetime.now() - timedelta(hours=hours)
 
         with self.lock:
-            recent_snapshots = [
-                s for s in self.snapshots
-                if s.timestamp > cutoff_time
-            ]
+            recent_snapshots = [s for s in self.snapshots if s.timestamp > cutoff_time]
 
         if not recent_snapshots:
             return {"error": "No performance data available"}
 
         # Calculate averages
         avg_cpu = sum(s.cpu_percent for s in recent_snapshots) / len(recent_snapshots)
-        avg_memory = sum(s.memory_percent for s in recent_snapshots) / len(recent_snapshots)
-        avg_memory_mb = sum(s.memory_mb for s in recent_snapshots) / len(recent_snapshots)
+        avg_memory = sum(s.memory_percent for s in recent_snapshots) / len(
+            recent_snapshots
+        )
+        avg_memory_mb = sum(s.memory_mb for s in recent_snapshots) / len(
+            recent_snapshots
+        )
 
         # Get peak values
         peak_cpu = max(s.cpu_percent for s in recent_snapshots)
@@ -391,7 +402,8 @@ class PerformanceProfiler:
 
         # Recent alerts
         recent_alerts = [
-            alert for alert in self.performance_alerts
+            alert
+            for alert in self.performance_alerts
             if alert["timestamp"] > cutoff_time
         ]
 
@@ -401,16 +413,13 @@ class PerformanceProfiler:
             "averages": {
                 "cpu_percent": avg_cpu,
                 "memory_percent": avg_memory,
-                "memory_mb": avg_memory_mb
+                "memory_mb": avg_memory_mb,
             },
-            "peaks": {
-                "cpu_percent": peak_cpu,
-                "memory_percent": peak_memory
-            },
+            "peaks": {"cpu_percent": peak_cpu, "memory_percent": peak_memory},
             "current": recent_snapshots[-1] if recent_snapshots else None,
             "alerts_count": len(recent_alerts),
             "suggestions_count": len(self.optimization_suggestions),
-            "components_monitored": len(self.component_metrics)
+            "components_monitored": len(self.component_metrics),
         }
 
     def get_component_metrics(self, component: str) -> Optional[Dict[str, Any]]:
@@ -430,17 +439,19 @@ class PerformanceProfiler:
                         "avg_time": sum(times) / len(times),
                         "min_time": min(times),
                         "max_time": max(times),
-                        "total_calls": metrics.operation_counts.get(operation, 0)
+                        "total_calls": metrics.operation_counts.get(operation, 0),
                     }
 
             return {
                 "component": component,
                 "operation_stats": operation_stats,
                 "error_counts": dict(metrics.error_counts),
-                "last_update": metrics.last_update.isoformat()
+                "last_update": metrics.last_update.isoformat(),
             }
 
-    def get_optimization_suggestions(self, priority: Optional[int] = None) -> List[Dict[str, Any]]:
+    def get_optimization_suggestions(
+        self, priority: Optional[int] = None
+    ) -> List[Dict[str, Any]]:
         """Get optimization suggestions."""
         suggestions = self.optimization_suggestions
 
@@ -455,7 +466,7 @@ class PerformanceProfiler:
                 "impact": s.impact,
                 "effort": s.effort,
                 "automated": s.automated,
-                "priority": s.priority
+                "priority": s.priority,
             }
             for s in suggestions
         ]
@@ -468,7 +479,7 @@ class PerformanceProfiler:
                 "message": alert["message"],
                 "severity": alert["severity"],
                 "timestamp": alert["timestamp"].isoformat(),
-                "count": alert["count"]
+                "count": alert["count"],
             }
             for alert in self.performance_alerts[-limit:]
         ]
@@ -494,21 +505,25 @@ class PerformanceProfiler:
 
         try:
             snapshot = tracemalloc.take_snapshot()
-            top_stats = snapshot.statistics('lineno')
+            top_stats = snapshot.statistics("lineno")
 
             memory_info = {
                 "total_traces": len(top_stats),
                 "top_allocations": [],
-                "total_memory_mb": sum(stat.size for stat in top_stats) / (1024 * 1024)
+                "total_memory_mb": sum(stat.size for stat in top_stats) / (1024 * 1024),
             }
 
             # Top 10 memory allocations
             for stat in top_stats[:10]:
-                memory_info["top_allocations"].append({
-                    "filename": stat.traceback.format()[0] if stat.traceback.format() else "unknown",
-                    "size_mb": stat.size / (1024 * 1024),
-                    "count": stat.count
-                })
+                memory_info["top_allocations"].append(
+                    {
+                        "filename": stat.traceback.format()[0]
+                        if stat.traceback.format()
+                        else "unknown",
+                        "size_mb": stat.size / (1024 * 1024),
+                        "count": stat.count,
+                    }
+                )
 
             return memory_info
 
@@ -539,7 +554,7 @@ class PerformanceProfiler:
                     "memory_percent": s.memory_percent,
                     "memory_mb": s.memory_mb,
                     "fps": s.fps,
-                    "camera_count": s.camera_count
+                    "camera_count": s.camera_count,
                 }
                 for s in list(self.snapshots)
             ],
@@ -547,26 +562,30 @@ class PerformanceProfiler:
                 name: {
                     "operation_counts": dict(metrics.operation_counts),
                     "error_counts": dict(metrics.error_counts),
-                    "last_update": metrics.last_update.isoformat()
+                    "last_update": metrics.last_update.isoformat(),
                 }
                 for name, metrics in self.component_metrics.items()
             },
             "optimization_suggestions": self.get_optimization_suggestions(),
-            "recent_alerts": self.get_recent_alerts()
+            "recent_alerts": self.get_recent_alerts(),
         }
 
         if format.lower() == "json":
             import json
+
             return json.dumps(data, indent=2)
         elif format.lower() == "yaml":
             import yaml
+
             return yaml.dump(data, default_flow_style=False)
         else:
             return str(data)
 
 
 # Decorators for performance monitoring
-def monitor_performance(component: str, operation: str, profiler: PerformanceProfiler = None):
+def monitor_performance(
+    component: str, operation: str, profiler: PerformanceProfiler = None
+):
     """Decorator to monitor function performance."""
 
     def decorator(func):
@@ -584,14 +603,18 @@ def monitor_performance(component: str, operation: str, profiler: PerformancePro
             finally:
                 duration = time.perf_counter() - start_time
                 if profiler:
-                    profiler.record_component_operation(component, operation, duration, success)
+                    profiler.record_component_operation(
+                        component, operation, duration, success
+                    )
 
         return wrapper
 
     return decorator
 
 
-def async_monitor_performance(component: str, operation: str, profiler: PerformanceProfiler = None):
+def async_monitor_performance(
+    component: str, operation: str, profiler: PerformanceProfiler = None
+):
     """Async decorator to monitor function performance."""
 
     def decorator(func):
@@ -609,7 +632,9 @@ def async_monitor_performance(component: str, operation: str, profiler: Performa
             finally:
                 duration = time.perf_counter() - start_time
                 if profiler:
-                    profiler.record_component_operation(component, operation, duration, success)
+                    profiler.record_component_operation(
+                        component, operation, duration, success
+                    )
 
         return wrapper
 
@@ -618,7 +643,9 @@ def async_monitor_performance(component: str, operation: str, profiler: Performa
 
 # Context managers for performance monitoring
 @contextmanager
-def performance_context(component: str, operation: str, profiler: PerformanceProfiler = None):
+def performance_context(
+    component: str, operation: str, profiler: PerformanceProfiler = None
+):
     """Context manager for performance monitoring."""
     start_time = time.perf_counter()
     success = True
@@ -670,8 +697,12 @@ class ResourceMonitor:
         return {
             "runtime_seconds": self.get_runtime_seconds(),
             "memory_delta_mb": self.get_memory_delta(),
-            "peak_memory_mb": self.peak_memory / (1024 * 1024) if self.peak_memory else 0,
-            "baseline_memory_mb": self.baseline_memory / (1024 * 1024) if self.baseline_memory else 0
+            "peak_memory_mb": self.peak_memory / (1024 * 1024)
+            if self.peak_memory
+            else 0,
+            "baseline_memory_mb": self.baseline_memory / (1024 * 1024)
+            if self.baseline_memory
+            else 0,
         }
 
 
@@ -697,10 +728,12 @@ class PerformanceOptimizer:
         return {
             "timestamp": datetime.now().isoformat(),
             "applied_optimizations": applied_optimizations,
-            "suggestions_processed": len(suggestions)
+            "suggestions_processed": len(suggestions),
         }
 
-    def _apply_optimization(self, suggestion: Dict[str, Any], configs: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    def _apply_optimization(
+        self, suggestion: Dict[str, Any], configs: Dict[str, Any]
+    ) -> Optional[Dict[str, Any]]:
         """Apply single optimization."""
         try:
             component = suggestion["component"]
@@ -738,7 +771,7 @@ class PerformanceOptimizer:
             return {
                 "type": "camera_resolution",
                 "changes": changes,
-                "reason": "Reduce CPU load by lowering camera resolution"
+                "reason": "Reduce CPU load by lowering camera resolution",
             }
 
         return None
@@ -752,7 +785,7 @@ class PerformanceOptimizer:
             return {
                 "type": "frame_rate",
                 "changes": {"streaming.target_fps": new_fps},
-                "reason": f"Reduce frame rate from {current_fps} to {new_fps} FPS"
+                "reason": f"Reduce frame rate from {current_fps} to {new_fps} FPS",
             }
 
         return None
@@ -770,7 +803,7 @@ class PerformanceOptimizer:
             return {
                 "type": "cache_clear",
                 "changes": {"system.caches_cleared": True},
-                "reason": "Cleared memory caches and forced garbage collection"
+                "reason": "Cleared memory caches and forced garbage collection",
             }
 
         except Exception as e:
@@ -798,7 +831,9 @@ def get_performance_summary(hours: int = 1) -> Dict[str, Any]:
     return global_profiler.get_performance_summary(hours)
 
 
-def record_operation(component: str, operation: str, duration: float, success: bool = True):
+def record_operation(
+    component: str, operation: str, duration: float, success: bool = True
+):
     """Record operation in global profiler."""
     global_profiler.record_component_operation(component, operation, duration, success)
 
@@ -815,7 +850,9 @@ if __name__ == "__main__":
         with performance_context("test_component", "test_operation", profiler):
             time.sleep(0.1)
 
-        profiler.record_component_operation("camera_manager", "capture_frame", 0.033, True)
+        profiler.record_component_operation(
+            "camera_manager", "capture_frame", 0.033, True
+        )
 
     time.sleep(2)
 

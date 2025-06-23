@@ -21,6 +21,7 @@ from zoomcam.utils.exceptions import InterpolationError
 
 class InterpolationAlgorithm(Enum):
     """Available interpolation algorithms."""
+
     NEAREST = (cv2.INTER_NEAREST, "nearest", 1, 10)
     LINEAR = (cv2.INTER_LINEAR, "linear", 4, 8)
     CUBIC = (cv2.INTER_CUBIC, "cubic", 7, 5)
@@ -36,6 +37,7 @@ class InterpolationAlgorithm(Enum):
 @dataclass
 class InterpolationRequest:
     """Interpolation request with metadata."""
+
     source_frame: np.ndarray
     target_resolution: Tuple[int, int]
     camera_id: str
@@ -47,6 +49,7 @@ class InterpolationRequest:
 @dataclass
 class InterpolationResult:
     """Interpolation result with performance metrics."""
+
     interpolated_frame: np.ndarray
     algorithm_used: InterpolationAlgorithm
     processing_time_ms: float
@@ -59,6 +62,7 @@ class InterpolationResult:
 @dataclass
 class PerformanceMetrics:
     """Performance tracking for interpolation."""
+
     camera_id: str
     algorithm: InterpolationAlgorithm
     avg_processing_time: float
@@ -85,9 +89,13 @@ class InterpolationEngine:
 
         # Default configuration
         self.default_algorithm = InterpolationAlgorithm.LINEAR
-        self.quality_vs_performance = self.config.get("quality_vs_performance", 0.7)  # 0=performance, 1=quality
+        self.quality_vs_performance = self.config.get(
+            "quality_vs_performance", 0.7
+        )  # 0=performance, 1=quality
         self.adaptive_enabled = self.config.get("adaptive_enabled", True)
-        self.cpu_threshold = self.config.get("cpu_threshold", 80)  # CPU % threshold for fallback
+        self.cpu_threshold = self.config.get(
+            "cpu_threshold", 80
+        )  # CPU % threshold for fallback
         self.sharpening_enabled = self.config.get("sharpening_enabled", True)
         self.noise_reduction_enabled = self.config.get("noise_reduction_enabled", False)
 
@@ -109,12 +117,12 @@ class InterpolationEngine:
         logging.info("Interpolation Engine initialized")
 
     def interpolate(
-            self,
-            frame: np.ndarray,
-            target_resolution: Tuple[int, int],
-            camera_id: str,
-            algorithm: Optional[InterpolationAlgorithm] = None,
-            quality_priority: str = "balanced"
+        self,
+        frame: np.ndarray,
+        target_resolution: Tuple[int, int],
+        camera_id: str,
+        algorithm: Optional[InterpolationAlgorithm] = None,
+        quality_priority: str = "balanced",
     ) -> np.ndarray:
         """
         Interpolate frame to target resolution.
@@ -157,8 +165,13 @@ class InterpolationEngine:
 
             # Track performance
             processing_time = (time.perf_counter() - start_time) * 1000
-            self._update_performance_metrics(camera_id, algorithm, processing_time, source_resolution,
-                                             target_resolution)
+            self._update_performance_metrics(
+                camera_id,
+                algorithm,
+                processing_time,
+                source_resolution,
+                target_resolution,
+            )
 
             return result
 
@@ -166,22 +179,26 @@ class InterpolationEngine:
             logging.error(f"Interpolation failed for camera {camera_id}: {e}")
             # Fallback to nearest neighbor
             try:
-                return cv2.resize(frame, target_resolution, interpolation=cv2.INTER_NEAREST)
+                return cv2.resize(
+                    frame, target_resolution, interpolation=cv2.INTER_NEAREST
+                )
             except Exception as fallback_error:
                 logging.error(f"Fallback interpolation failed: {fallback_error}")
                 raise InterpolationError(f"Complete interpolation failure: {e}")
 
     def _select_optimal_algorithm(
-            self,
-            source_resolution: Tuple[int, int],
-            target_resolution: Tuple[int, int],
-            camera_id: str,
-            quality_priority: str
+        self,
+        source_resolution: Tuple[int, int],
+        target_resolution: Tuple[int, int],
+        camera_id: str,
+        quality_priority: str,
     ) -> InterpolationAlgorithm:
         """Select optimal interpolation algorithm."""
 
         # Calculate scale factor
-        scale_factor = (target_resolution[0] * target_resolution[1]) / (source_resolution[0] * source_resolution[1])
+        scale_factor = (target_resolution[0] * target_resolution[1]) / (
+            source_resolution[0] * source_resolution[1]
+        )
 
         # Check cache first
         cache_key = (source_resolution, target_resolution, quality_priority)
@@ -210,14 +227,20 @@ class InterpolationEngine:
 
         return algorithm
 
-    def _select_performance_algorithm(self, scale_factor: float) -> InterpolationAlgorithm:
+    def _select_performance_algorithm(
+        self, scale_factor: float
+    ) -> InterpolationAlgorithm:
         """Select algorithm prioritizing performance."""
         if scale_factor > 4.0:  # Large upscaling
             return InterpolationAlgorithm.LINEAR
         elif scale_factor < 0.25:  # Large downscaling
             return InterpolationAlgorithm.LINEAR
         else:
-            return InterpolationAlgorithm.NEAREST if scale_factor > 2.0 else InterpolationAlgorithm.LINEAR
+            return (
+                InterpolationAlgorithm.NEAREST
+                if scale_factor > 2.0
+                else InterpolationAlgorithm.LINEAR
+            )
 
     def _select_quality_algorithm(self, scale_factor: float) -> InterpolationAlgorithm:
         """Select algorithm prioritizing quality."""
@@ -228,7 +251,9 @@ class InterpolationEngine:
         else:
             return InterpolationAlgorithm.CUBIC
 
-    def _select_balanced_algorithm(self, scale_factor: float, camera_id: str) -> InterpolationAlgorithm:
+    def _select_balanced_algorithm(
+        self, scale_factor: float, camera_id: str
+    ) -> InterpolationAlgorithm:
         """Select balanced algorithm considering performance history."""
 
         # Check performance history for this camera
@@ -247,10 +272,13 @@ class InterpolationEngine:
         else:  # Minor scaling
             return InterpolationAlgorithm.LINEAR
 
-    def _check_cpu_fallback(self, algorithm: InterpolationAlgorithm) -> InterpolationAlgorithm:
+    def _check_cpu_fallback(
+        self, algorithm: InterpolationAlgorithm
+    ) -> InterpolationAlgorithm:
         """Check if CPU fallback is needed."""
         try:
             import psutil
+
             cpu_usage = psutil.cpu_percent(interval=0.1)
 
             if cpu_usage > self.cpu_threshold:
@@ -270,35 +298,43 @@ class InterpolationEngine:
         return algorithm
 
     def _perform_interpolation(
-            self,
-            frame: np.ndarray,
-            target_resolution: Tuple[int, int],
-            algorithm: InterpolationAlgorithm
+        self,
+        frame: np.ndarray,
+        target_resolution: Tuple[int, int],
+        algorithm: InterpolationAlgorithm,
     ) -> np.ndarray:
         """Perform the actual interpolation."""
         try:
-            return cv2.resize(frame, target_resolution, interpolation=algorithm.cv2_flag)
+            return cv2.resize(
+                frame, target_resolution, interpolation=algorithm.cv2_flag
+            )
         except Exception as e:
             logging.error(f"OpenCV resize failed with {algorithm.algorithm_name}: {e}")
             # Fallback to linear interpolation
             return cv2.resize(frame, target_resolution, interpolation=cv2.INTER_LINEAR)
 
     def _apply_enhancements(
-            self,
-            frame: np.ndarray,
-            algorithm: InterpolationAlgorithm,
-            target_resolution: Tuple[int, int]
+        self,
+        frame: np.ndarray,
+        algorithm: InterpolationAlgorithm,
+        target_resolution: Tuple[int, int],
     ) -> np.ndarray:
         """Apply post-processing enhancements."""
         try:
             enhanced_frame = frame.copy()
 
             # Apply sharpening for upscaled images
-            if self.sharpening_enabled and algorithm in [InterpolationAlgorithm.CUBIC, InterpolationAlgorithm.LANCZOS]:
+            if self.sharpening_enabled and algorithm in [
+                InterpolationAlgorithm.CUBIC,
+                InterpolationAlgorithm.LANCZOS,
+            ]:
                 enhanced_frame = self._apply_sharpening(enhanced_frame)
 
             # Apply noise reduction for heavily processed images
-            if self.noise_reduction_enabled and target_resolution[0] * target_resolution[1] > 1920 * 1080:
+            if (
+                self.noise_reduction_enabled
+                and target_resolution[0] * target_resolution[1] > 1920 * 1080
+            ):
                 enhanced_frame = self._apply_noise_reduction(enhanced_frame)
 
             return enhanced_frame
@@ -336,12 +372,12 @@ class InterpolationEngine:
             return frame
 
     def _update_performance_metrics(
-            self,
-            camera_id: str,
-            algorithm: InterpolationAlgorithm,
-            processing_time: float,
-            source_resolution: Tuple[int, int],
-            target_resolution: Tuple[int, int]
+        self,
+        camera_id: str,
+        algorithm: InterpolationAlgorithm,
+        processing_time: float,
+        source_resolution: Tuple[int, int],
+        target_resolution: Tuple[int, int],
     ) -> None:
         """Update performance metrics for camera and algorithm."""
         with self.performance_lock:
@@ -353,14 +389,14 @@ class InterpolationEngine:
                     avg_processing_time=processing_time,
                     total_frames=1,
                     quality_score=algorithm.quality_score,
-                    last_update=time.time()
+                    last_update=time.time(),
                 )
             else:
                 metrics = self.performance_metrics[camera_id]
                 # Exponential moving average
                 alpha = 0.1
                 metrics.avg_processing_time = (
-                        alpha * processing_time + (1 - alpha) * metrics.avg_processing_time
+                    alpha * processing_time + (1 - alpha) * metrics.avg_processing_time
                 )
                 metrics.total_frames += 1
                 metrics.algorithm = algorithm
@@ -374,13 +410,12 @@ class InterpolationEngine:
 
             # Adaptive algorithm learning
             if self.adaptive_enabled:
-                self._update_camera_algorithm_preference(camera_id, algorithm, processing_time)
+                self._update_camera_algorithm_preference(
+                    camera_id, algorithm, processing_time
+                )
 
     def _update_camera_algorithm_preference(
-            self,
-            camera_id: str,
-            algorithm: InterpolationAlgorithm,
-            processing_time: float
+        self, camera_id: str, algorithm: InterpolationAlgorithm, processing_time: float
     ) -> None:
         """Update camera's preferred algorithm based on performance."""
         # If processing time is consistently good, stick with this algorithm
@@ -396,10 +431,10 @@ class InterpolationEngine:
                 self.camera_algorithms[camera_id] = InterpolationAlgorithm.NEAREST
 
     def get_optimal_algorithm_for_resolution(
-            self,
-            source_resolution: Tuple[int, int],
-            target_resolution: Tuple[int, int],
-            quality_priority: str = "balanced"
+        self,
+        source_resolution: Tuple[int, int],
+        target_resolution: Tuple[int, int],
+        quality_priority: str = "balanced",
     ) -> InterpolationAlgorithm:
         """Get optimal algorithm for resolution transformation."""
         return self._select_optimal_algorithm(
@@ -407,10 +442,10 @@ class InterpolationEngine:
         )
 
     def benchmark_algorithms(
-            self,
-            test_frame: np.ndarray,
-            target_resolution: Tuple[int, int],
-            iterations: int = 10
+        self,
+        test_frame: np.ndarray,
+        target_resolution: Tuple[int, int],
+        iterations: int = 10,
     ) -> Dict[str, Dict[str, float]]:
         """Benchmark all algorithms on a test frame."""
         results = {}
@@ -421,19 +456,23 @@ class InterpolationEngine:
             for _ in range(iterations):
                 start_time = time.perf_counter()
                 try:
-                    cv2.resize(test_frame, target_resolution, interpolation=algorithm.cv2_flag)
+                    cv2.resize(
+                        test_frame, target_resolution, interpolation=algorithm.cv2_flag
+                    )
                     processing_time = (time.perf_counter() - start_time) * 1000
                     times.append(processing_time)
                 except Exception as e:
-                    logging.warning(f"Benchmark failed for {algorithm.algorithm_name}: {e}")
-                    times.append(float('inf'))
+                    logging.warning(
+                        f"Benchmark failed for {algorithm.algorithm_name}: {e}"
+                    )
+                    times.append(float("inf"))
 
             results[algorithm.algorithm_name] = {
                 "avg_time_ms": sum(times) / len(times),
                 "min_time_ms": min(times),
                 "max_time_ms": max(times),
                 "quality_score": algorithm.quality_score,
-                "performance_score": algorithm.performance_score
+                "performance_score": algorithm.performance_score,
             }
 
         return results
@@ -445,14 +484,16 @@ class InterpolationEngine:
                 "global_stats": {
                     "total_interpolations": len(self.recent_processing_times),
                     "avg_processing_time_ms": (
-                        sum(self.recent_processing_times) / len(self.recent_processing_times)
-                        if self.recent_processing_times else 0
+                        sum(self.recent_processing_times)
+                        / len(self.recent_processing_times)
+                        if self.recent_processing_times
+                        else 0
                     ),
                     "adaptive_enabled": self.adaptive_enabled,
-                    "cpu_threshold": self.cpu_threshold
+                    "cpu_threshold": self.cpu_threshold,
                 },
                 "camera_stats": {},
-                "algorithm_distribution": {}
+                "algorithm_distribution": {},
             }
 
             # Camera-specific stats
@@ -462,7 +503,7 @@ class InterpolationEngine:
                     "total_frames": metrics.total_frames,
                     "preferred_algorithm": metrics.algorithm.algorithm_name,
                     "quality_score": metrics.quality_score,
-                    "last_update": metrics.last_update
+                    "last_update": metrics.last_update,
                 }
 
             # Algorithm usage distribution
@@ -476,21 +517,23 @@ class InterpolationEngine:
                 for algo_name, count in algorithm_counts.items():
                     stats["algorithm_distribution"][algo_name] = {
                         "usage_count": count,
-                        "usage_percentage": (count / total_cameras) * 100
+                        "usage_percentage": (count / total_cameras) * 100,
                     }
 
             return stats
 
     def get_camera_algorithm_recommendation(
-            self,
-            camera_id: str,
-            source_resolution: Tuple[int, int],
-            target_resolution: Tuple[int, int]
+        self,
+        camera_id: str,
+        source_resolution: Tuple[int, int],
+        target_resolution: Tuple[int, int],
     ) -> Dict[str, Any]:
         """Get algorithm recommendation for specific camera."""
 
         # Calculate scale factor and direction
-        scale_factor = (target_resolution[0] * target_resolution[1]) / (source_resolution[0] * source_resolution[1])
+        scale_factor = (target_resolution[0] * target_resolution[1]) / (
+            source_resolution[0] * source_resolution[1]
+        )
         scale_direction = "upscale" if scale_factor > 1.0 else "downscale"
 
         # Get current performance if available
@@ -500,14 +543,14 @@ class InterpolationEngine:
             current_performance = {
                 "current_algorithm": metrics.algorithm.algorithm_name,
                 "avg_processing_time_ms": metrics.avg_processing_time,
-                "total_frames": metrics.total_frames
+                "total_frames": metrics.total_frames,
             }
 
         # Get recommendations for different priorities
         recommendations = {
             "performance": self._select_performance_algorithm(scale_factor),
             "balanced": self._select_balanced_algorithm(scale_factor, camera_id),
-            "quality": self._select_quality_algorithm(scale_factor)
+            "quality": self._select_quality_algorithm(scale_factor),
         }
 
         return {
@@ -522,10 +565,10 @@ class InterpolationEngine:
                     "algorithm": algo.algorithm_name,
                     "quality_score": algo.quality_score,
                     "performance_score": algo.performance_score,
-                    "description": f"{algo.algorithm_name.title()} interpolation"
+                    "description": f"{algo.algorithm_name.title()} interpolation",
                 }
                 for priority, algo in recommendations.items()
-            }
+            },
         }
 
     def update_config(self, new_config: Dict[str, Any]) -> None:
@@ -533,18 +576,28 @@ class InterpolationEngine:
         self.config.update(new_config)
 
         # Update parameters
-        self.quality_vs_performance = new_config.get("quality_vs_performance", self.quality_vs_performance)
-        self.adaptive_enabled = new_config.get("adaptive_enabled", self.adaptive_enabled)
+        self.quality_vs_performance = new_config.get(
+            "quality_vs_performance", self.quality_vs_performance
+        )
+        self.adaptive_enabled = new_config.get(
+            "adaptive_enabled", self.adaptive_enabled
+        )
         self.cpu_threshold = new_config.get("cpu_threshold", self.cpu_threshold)
-        self.sharpening_enabled = new_config.get("sharpening_enabled", self.sharpening_enabled)
-        self.noise_reduction_enabled = new_config.get("noise_reduction_enabled", self.noise_reduction_enabled)
+        self.sharpening_enabled = new_config.get(
+            "sharpening_enabled", self.sharpening_enabled
+        )
+        self.noise_reduction_enabled = new_config.get(
+            "noise_reduction_enabled", self.noise_reduction_enabled
+        )
 
         # Clear caches to apply new settings
         self._resolution_cache.clear()
 
         logging.info("Interpolation engine configuration updated")
 
-    def set_camera_algorithm(self, camera_id: str, algorithm: InterpolationAlgorithm) -> None:
+    def set_camera_algorithm(
+        self, camera_id: str, algorithm: InterpolationAlgorithm
+    ) -> None:
         """Manually set preferred algorithm for camera."""
         self.camera_algorithms[camera_id] = algorithm
         logging.info(f"Set camera {camera_id} algorithm to {algorithm.algorithm_name}")
@@ -575,7 +628,9 @@ class InterpolationEngine:
                 frame[y, x] = [
                     int((x / resolution[0]) * 255),  # Red gradient
                     int((y / resolution[1]) * 255),  # Green gradient
-                    int(((x + y) / (resolution[0] + resolution[1])) * 255)  # Blue gradient
+                    int(
+                        ((x + y) / (resolution[0] + resolution[1])) * 255
+                    ),  # Blue gradient
                 ]
 
         # Add some geometric patterns
@@ -592,16 +647,24 @@ class InterpolationEngine:
             cv2.line(frame, (center_x, center_y), (end_x, end_y), (200, 200, 200), 1)
 
         # Add text
-        cv2.putText(frame, "TEST PATTERN", (50, 50), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 255), 2)
+        cv2.putText(
+            frame,
+            "TEST PATTERN",
+            (50, 50),
+            cv2.FONT_HERSHEY_SIMPLEX,
+            1,
+            (255, 255, 255),
+            2,
+        )
 
         return frame
 
     @lru_cache(maxsize=128)
     def get_cached_resize_params(
-            self,
-            source_res: Tuple[int, int],
-            target_res: Tuple[int, int],
-            algorithm_name: str
+        self,
+        source_res: Tuple[int, int],
+        target_res: Tuple[int, int],
+        algorithm_name: str,
     ) -> Tuple[int, Tuple[int, int]]:
         """Get cached resize parameters for common transformations."""
         algorithm = self.get_algorithm_by_name(algorithm_name)
@@ -611,13 +674,15 @@ class InterpolationEngine:
 
     def optimize_for_raspberry_pi(self) -> None:
         """Optimize settings for Raspberry Pi performance."""
-        self.config.update({
-            "quality_vs_performance": 0.3,  # Favor performance
-            "cpu_threshold": 70,  # Lower threshold
-            "adaptive_enabled": True,
-            "sharpening_enabled": False,  # Disable for performance
-            "noise_reduction_enabled": False
-        })
+        self.config.update(
+            {
+                "quality_vs_performance": 0.3,  # Favor performance
+                "cpu_threshold": 70,  # Lower threshold
+                "adaptive_enabled": True,
+                "sharpening_enabled": False,  # Disable for performance
+                "noise_reduction_enabled": False,
+            }
+        )
 
         # Set all cameras to performance algorithms
         for camera_id in self.camera_algorithms:
@@ -643,8 +708,10 @@ class InterpolationEngine:
             "cache_entries": cache_size,
             "performance_metrics_count": metrics_size,
             "processing_history_count": history_size,
-            "estimated_memory_mb": estimated_cache_mb + estimated_metrics_mb + estimated_history_mb,
-            "cache_hit_info": f"{cache_size}/{self.resolution_cache_size} entries"
+            "estimated_memory_mb": estimated_cache_mb
+            + estimated_metrics_mb
+            + estimated_history_mb,
+            "cache_hit_info": f"{cache_size}/{self.resolution_cache_size} entries",
         }
 
     def cleanup_old_metrics(self, max_age_hours: int = 24) -> None:
@@ -654,7 +721,8 @@ class InterpolationEngine:
         with self.performance_lock:
             # Remove old camera metrics
             cameras_to_remove = [
-                camera_id for camera_id, metrics in self.performance_metrics.items()
+                camera_id
+                for camera_id, metrics in self.performance_metrics.items()
                 if metrics.last_update < cutoff_time
             ]
 
@@ -668,4 +736,6 @@ class InterpolationEngine:
                 self.recent_processing_times = self.recent_processing_times[-1000:]
 
         if cameras_to_remove:
-            logging.info(f"Cleaned up metrics for {len(cameras_to_remove)} inactive cameras")
+            logging.info(
+                f"Cleaned up metrics for {len(cameras_to_remove)} inactive cameras"
+            )

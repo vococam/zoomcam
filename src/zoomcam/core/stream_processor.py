@@ -28,6 +28,7 @@ from zoomcam.utils.exceptions import StreamProcessingError
 @dataclass
 class StreamSegment:
     """HLS stream segment information."""
+
     filename: str
     duration: float
     sequence: int
@@ -37,6 +38,7 @@ class StreamSegment:
 @dataclass
 class CompositeFrame:
     """Composed frame with layout information."""
+
     frame: np.ndarray
     layout: LayoutResult
     timestamp: datetime
@@ -55,7 +57,9 @@ class StreamProcessor:
     - Performance monitoring and optimization
     """
 
-    def __init__(self, config: Dict[str, Any], layout_engine: LayoutEngine, auto_config=None):
+    def __init__(
+        self, config: Dict[str, Any], layout_engine: LayoutEngine, auto_config=None
+    ):
         self.config = config
         self.layout_engine = layout_engine
         self.auto_config = auto_config
@@ -118,8 +122,7 @@ class StreamProcessor:
 
             # Start compositor thread
             self.compositor_thread = threading.Thread(
-                target=self._compositor_worker,
-                daemon=True
+                target=self._compositor_worker, daemon=True
             )
             self.compositor_thread.start()
 
@@ -138,25 +141,43 @@ class StreamProcessor:
         ffmpeg_cmd = [
             "ffmpeg",
             "-y",  # Overwrite output files
-            "-f", "rawvideo",
-            "-vcodec", "rawvideo",
-            "-pix_fmt", "bgr24",
-            "-s", f"{self.output_resolution[0]}x{self.output_resolution[1]}",
-            "-r", str(self.target_fps),
-            "-i", "-",  # Input from stdin
-            "-c:v", "libx264",
-            "-preset", "ultrafast",
-            "-tune", "zerolatency",
-            "-b:v", self.bitrate,
-            "-maxrate", self.bitrate,
-            "-bufsize", f"{int(self.bitrate[:-1]) * 2}M",
-            "-g", str(self.target_fps * 2),  # Keyframe interval
-            "-hls_time", str(self.segment_duration),
-            "-hls_list_size", str(self.segment_count),
-            "-hls_flags", "delete_segments",
-            "-hls_allow_cache", "0",
-            "-hls_segment_filename", str(self.output_dir / "segment_%03d.ts"),
-            str(playlist_path)
+            "-f",
+            "rawvideo",
+            "-vcodec",
+            "rawvideo",
+            "-pix_fmt",
+            "bgr24",
+            "-s",
+            f"{self.output_resolution[0]}x{self.output_resolution[1]}",
+            "-r",
+            str(self.target_fps),
+            "-i",
+            "-",  # Input from stdin
+            "-c:v",
+            "libx264",
+            "-preset",
+            "ultrafast",
+            "-tune",
+            "zerolatency",
+            "-b:v",
+            self.bitrate,
+            "-maxrate",
+            self.bitrate,
+            "-bufsize",
+            f"{int(self.bitrate[:-1]) * 2}M",
+            "-g",
+            str(self.target_fps * 2),  # Keyframe interval
+            "-hls_time",
+            str(self.segment_duration),
+            "-hls_list_size",
+            str(self.segment_count),
+            "-hls_flags",
+            "delete_segments",
+            "-hls_allow_cache",
+            "0",
+            "-hls_segment_filename",
+            str(self.output_dir / "segment_%03d.ts"),
+            str(playlist_path),
         ]
 
         try:
@@ -165,7 +186,7 @@ class StreamProcessor:
                 stdin=subprocess.PIPE,
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
-                bufsize=0
+                bufsize=0,
             )
 
             self.ffmpeg_input_pipe = self.ffmpeg_process.stdin
@@ -194,9 +215,9 @@ class StreamProcessor:
 
                 # Request frame composition
                 composition_request = {
-                    'layout': layout,
-                    'timestamp': datetime.now(),
-                    'frame_number': self.frames_processed + 1
+                    "layout": layout,
+                    "timestamp": datetime.now(),
+                    "frame_number": self.frames_processed + 1,
                 }
 
                 try:
@@ -228,7 +249,7 @@ class StreamProcessor:
                 start_time = datetime.now()
 
                 # Compose frame
-                composite_frame = self._compose_frame(request['layout'])
+                composite_frame = self._compose_frame(request["layout"])
 
                 if composite_frame is not None:
                     # Send to FFmpeg
@@ -252,7 +273,7 @@ class StreamProcessor:
             # Create blank canvas
             canvas = np.zeros(
                 (self.output_resolution[1], self.output_resolution[0], 3),
-                dtype=np.uint8
+                dtype=np.uint8,
             )
 
             if not layout or not layout.cells:
@@ -280,8 +301,11 @@ class StreamProcessor:
                 if camera_frame is None:
                     # Draw no signal for this cell
                     self._draw_cell_no_signal(
-                        canvas, cell, cell_width, cell_height,
-                        cell.camera_fragment.camera_id
+                        canvas,
+                        cell,
+                        cell_width,
+                        cell_height,
+                        cell.camera_fragment.camera_id,
                     )
                     continue
 
@@ -295,12 +319,17 @@ class StreamProcessor:
                 resized_frame = cv2.resize(camera_frame, (cell_w, cell_h))
 
                 # Apply fragment cropping if needed
-                if hasattr(cell.camera_fragment, 'bbox') and cell.camera_fragment.bbox:
+                if hasattr(cell.camera_fragment, "bbox") and cell.camera_fragment.bbox:
                     bbox = cell.camera_fragment.bbox
                     # Crop to specific region (for motion zones)
                     x, y, w, h = bbox
-                    if x >= 0 and y >= 0 and x + w <= resized_frame.shape[1] and y + h <= resized_frame.shape[0]:
-                        resized_frame = resized_frame[y:y + h, x:x + w]
+                    if (
+                        x >= 0
+                        and y >= 0
+                        and x + w <= resized_frame.shape[1]
+                        and y + h <= resized_frame.shape[0]
+                    ):
+                        resized_frame = resized_frame[y : y + h, x : x + w]
                         resized_frame = cv2.resize(resized_frame, (cell_w, cell_h))
 
                 # Apply activity-based effects
@@ -312,7 +341,9 @@ class StreamProcessor:
                     resized_frame = self._dim_inactive_frame(resized_frame)
 
                 # Draw border based on activity
-                border_color = self._get_border_color(cell.camera_fragment.activity_level)
+                border_color = self._get_border_color(
+                    cell.camera_fragment.activity_level
+                )
                 border_thickness = 3 if cell.camera_fragment.activity_level > 0.3 else 1
 
                 cv2.rectangle(
@@ -320,14 +351,16 @@ class StreamProcessor:
                     (0, 0),
                     (cell_w - 1, cell_h - 1),
                     border_color,
-                    border_thickness
+                    border_thickness,
                 )
 
                 # Overlay frame info
                 self._draw_frame_info(resized_frame, cell.camera_fragment)
 
                 # Place frame on canvas
-                canvas[cell_y:cell_y + cell_h, cell_x:cell_x + cell_w] = resized_frame
+                canvas[
+                    cell_y : cell_y + cell_h, cell_x : cell_x + cell_w
+                ] = resized_frame
 
             # Draw grid lines
             self._draw_grid_lines(canvas, grid_cols, grid_rows)
@@ -345,10 +378,10 @@ class StreamProcessor:
         """Get latest frame from camera manager."""
         # This would be injected or accessed via camera manager
         # For now, return a placeholder
-        if hasattr(self, 'camera_manager'):
+        if hasattr(self, "camera_manager"):
             frame_data = asyncio.run_coroutine_threadsafe(
                 self.camera_manager.get_latest_frame(camera_id),
-                asyncio.get_event_loop()
+                asyncio.get_event_loop(),
             ).result(timeout=0.1)
 
             if frame_data and frame_data.frame is not None:
@@ -365,7 +398,7 @@ class StreamProcessor:
         for y in range(0, 480, 40):
             for x in range(0, 640, 40):
                 if (x // 40 + y // 40) % 2 == 0:
-                    frame[y:y + 40, x:x + 40] = (64, 64, 64)
+                    frame[y : y + 40, x : x + 40] = (64, 64, 64)
 
         # Add camera ID text
         cv2.putText(
@@ -375,7 +408,7 @@ class StreamProcessor:
             cv2.FONT_HERSHEY_SIMPLEX,
             1,
             (255, 255, 255),
-            2
+            2,
         )
 
         cv2.putText(
@@ -385,7 +418,7 @@ class StreamProcessor:
             cv2.FONT_HERSHEY_SIMPLEX,
             0.8,
             (0, 255, 255),
-            2
+            2,
         )
 
         return frame
@@ -410,7 +443,7 @@ class StreamProcessor:
             cv2.FONT_HERSHEY_SIMPLEX,
             2,
             (100, 100, 100),
-            3
+            3,
         )
 
         # Draw timestamp
@@ -422,16 +455,16 @@ class StreamProcessor:
             cv2.FONT_HERSHEY_SIMPLEX,
             1,
             (150, 150, 150),
-            2
+            2,
         )
 
     def _draw_cell_no_signal(
-            self,
-            canvas: np.ndarray,
-            cell,
-            cell_width: int,
-            cell_height: int,
-            camera_id: str
+        self,
+        canvas: np.ndarray,
+        cell,
+        cell_width: int,
+        cell_height: int,
+        camera_id: str,
     ) -> None:
         """Draw no signal for specific cell."""
         cell_x = cell.x * cell_width
@@ -440,7 +473,7 @@ class StreamProcessor:
         cell_h = cell.height * cell_height
 
         # Dark cell background
-        canvas[cell_y:cell_y + cell_h, cell_x:cell_x + cell_w] = (30, 30, 30)
+        canvas[cell_y : cell_y + cell_h, cell_x : cell_x + cell_w] = (30, 30, 30)
 
         # Red dashed border
         cv2.rectangle(
@@ -448,7 +481,7 @@ class StreamProcessor:
             (cell_x, cell_y),
             (cell_x + cell_w - 1, cell_y + cell_h - 1),
             (0, 0, 255),
-            2
+            2,
         )
 
         # "No Signal" text
@@ -464,7 +497,7 @@ class StreamProcessor:
             cv2.FONT_HERSHEY_SIMPLEX,
             1,
             (100, 100, 255),
-            2
+            2,
         )
 
         # Camera ID
@@ -475,7 +508,7 @@ class StreamProcessor:
             cv2.FONT_HERSHEY_SIMPLEX,
             0.7,
             (150, 150, 150),
-            1
+            1,
         )
 
     def _enhance_active_frame(self, frame: np.ndarray) -> np.ndarray:
@@ -514,10 +547,12 @@ class StreamProcessor:
             cv2.FONT_HERSHEY_SIMPLEX,
             0.5,
             (255, 255, 255),
-            1
+            1,
         )
 
-    def _draw_grid_lines(self, canvas: np.ndarray, grid_cols: int, grid_rows: int) -> None:
+    def _draw_grid_lines(
+        self, canvas: np.ndarray, grid_cols: int, grid_rows: int
+    ) -> None:
         """Draw grid lines on canvas."""
         height, width = canvas.shape[:2]
 
@@ -546,11 +581,13 @@ class StreamProcessor:
             cv2.FONT_HERSHEY_SIMPLEX,
             0.7,
             (200, 200, 200),
-            1
+            1,
         )
 
         # Layout info
-        layout_info = f"Layout: {len(layout.cells)} cells, {layout.layout_efficiency:.1%} eff"
+        layout_info = (
+            f"Layout: {len(layout.cells)} cells, {layout.layout_efficiency:.1%} eff"
+        )
         cv2.putText(
             canvas,
             layout_info,
@@ -558,7 +595,7 @@ class StreamProcessor:
             cv2.FONT_HERSHEY_SIMPLEX,
             0.6,
             (200, 200, 200),
-            1
+            1,
         )
 
     def _send_frame_to_ffmpeg(self, frame: np.ndarray) -> None:
@@ -566,7 +603,10 @@ class StreamProcessor:
         try:
             if self.ffmpeg_process and self.ffmpeg_input_pipe:
                 # Ensure frame is correct size and format
-                if frame.shape[:2] != (self.output_resolution[1], self.output_resolution[0]):
+                if frame.shape[:2] != (
+                    self.output_resolution[1],
+                    self.output_resolution[0],
+                ):
                     frame = cv2.resize(frame, self.output_resolution)
 
                 # Write frame data
@@ -598,7 +638,8 @@ class StreamProcessor:
         """Get stream processing performance statistics."""
         avg_processing_time = (
             sum(self.processing_times) / len(self.processing_times)
-            if self.processing_times else 0
+            if self.processing_times
+            else 0
         )
 
         return {
@@ -611,7 +652,7 @@ class StreamProcessor:
                 self.current_layout.layout_efficiency if self.current_layout else 0
             ),
             "output_resolution": f"{self.output_resolution[0]}x{self.output_resolution[1]}",
-            "bitrate": self.bitrate
+            "bitrate": self.bitrate,
         }
 
     async def update_config(self, new_config: Dict[str, Any]) -> None:
@@ -619,8 +660,10 @@ class StreamProcessor:
         restart_needed = False
 
         # Check if restart is needed
-        if (new_config.get("bitrate") != self.bitrate or
-                new_config.get("target_fps") != self.target_fps):
+        if (
+            new_config.get("bitrate") != self.bitrate
+            or new_config.get("target_fps") != self.target_fps
+        ):
             restart_needed = True
 
         # Update configuration

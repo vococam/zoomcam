@@ -17,7 +17,12 @@ from typing import Dict, List, Any, Optional
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, HTTPException, Request, BackgroundTasks, Depends
-from fastapi.responses import HTMLResponse, JSONResponse, StreamingResponse, FileResponse
+from fastapi.responses import (
+    HTMLResponse,
+    JSONResponse,
+    StreamingResponse,
+    FileResponse,
+)
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from fastapi.middleware.cors import CORSMiddleware
@@ -36,6 +41,7 @@ from zoomcam.utils.exceptions import ZoomCamError
 # Pydantic models for API
 class CameraDetectionRequest(BaseModel):
     """Request model for camera detection."""
+
     scan_usb: bool = True
     scan_rtsp: bool = False
     rtsp_urls: List[str] = Field(default_factory=list)
@@ -44,12 +50,14 @@ class CameraDetectionRequest(BaseModel):
 
 class CameraTestRequest(BaseModel):
     """Request model for camera testing."""
+
     source: str
     timeout_seconds: int = 5
 
 
 class CameraConfigRequest(BaseModel):
     """Request model for camera configuration."""
+
     name: str
     source: str
     resolution: str = "auto"
@@ -61,15 +69,19 @@ class CameraConfigRequest(BaseModel):
 
 class SystemConfigRequest(BaseModel):
     """Request model for system configuration."""
+
     display_resolution: str
     target_fps: int = Field(ge=5, le=60, default=30)
-    quality_priority: str = Field(regex="^(performance|balanced|quality)$", default="balanced")
+    quality_priority: str = Field(
+        pattern="^(performance|balanced|quality)$", default="balanced"
+    )
     recording_enabled: bool = True
     git_logging_enabled: bool = True
 
 
 class RTSPTestResult(BaseModel):
     """RTSP test result model."""
+
     url: str
     success: bool
     resolution: Optional[str] = None
@@ -86,34 +98,36 @@ app_state = {
     "git_logger": None,
     "auto_config": None,
     "setup_mode": True,  # Start in setup mode
-    "setup_completed": False
+    "setup_completed": False,
 }
 
 
 def create_app(
-        camera_manager: CameraManager,
-        layout_engine: LayoutEngine,
-        stream_processor: StreamProcessor,
-        config_manager: ConfigManager,
-        git_logger: Optional[GitLogger] = None,
-        auto_config: Optional[AutoConfigManager] = None
+    camera_manager: CameraManager,
+    layout_engine: LayoutEngine,
+    stream_processor: StreamProcessor,
+    config_manager: ConfigManager,
+    git_logger: Optional[GitLogger] = None,
+    auto_config: Optional[AutoConfigManager] = None,
 ) -> FastAPI:
     """Create FastAPI application with all components."""
 
     # Update global state
-    app_state.update({
-        "camera_manager": camera_manager,
-        "layout_engine": layout_engine,
-        "stream_processor": stream_processor,
-        "config_manager": config_manager,
-        "git_logger": git_logger,
-        "auto_config": auto_config
-    })
+    app_state.update(
+        {
+            "camera_manager": camera_manager,
+            "layout_engine": layout_engine,
+            "stream_processor": stream_processor,
+            "config_manager": config_manager,
+            "git_logger": git_logger,
+            "auto_config": auto_config,
+        }
+    )
 
     app = FastAPI(
         title="ZoomCam",
         description="Intelligent Adaptive Camera Monitoring System",
-        version="0.1.0"
+        version="0.1.0",
     )
 
     # CORS middleware
@@ -131,7 +145,9 @@ def create_app(
     # Mount static files
     app.mount("/static", StaticFiles(directory="src/zoomcam/web/static"), name="static")
     app.mount("/hls", StaticFiles(directory="/tmp/zoomcam_hls"), name="hls")
-    app.mount("/screenshots", StaticFiles(directory="logs/screenshots"), name="screenshots")
+    app.mount(
+        "/screenshots", StaticFiles(directory="logs/screenshots"), name="screenshots"
+    )
 
     # Store components in app state
     app.state.camera_manager = camera_manager
@@ -156,23 +172,20 @@ def setup_routes(app: FastAPI, templates: Jinja2Templates):
     async def index(request: Request):
         """Main application page or setup wizard."""
         if app_state["setup_mode"] and not app_state["setup_completed"]:
-            return templates.TemplateResponse("setup_wizard.html", {
-                "request": request,
-                "step": "welcome"
-            })
+            return templates.TemplateResponse(
+                "setup_wizard.html", {"request": request, "step": "welcome"}
+            )
         else:
-            return templates.TemplateResponse("index.html", {
-                "request": request,
-                "stream_url": "/hls/stream.m3u8"
-            })
+            return templates.TemplateResponse(
+                "index.html", {"request": request, "stream_url": "/hls/stream.m3u8"}
+            )
 
     @app.get("/setup", response_class=HTMLResponse)
     async def setup_wizard(request: Request, step: str = "welcome"):
         """Setup wizard interface."""
-        return templates.TemplateResponse("setup_wizard.html", {
-            "request": request,
-            "step": step
-        })
+        return templates.TemplateResponse(
+            "setup_wizard.html", {"request": request, "step": step}
+        )
 
     @app.get("/config", response_class=HTMLResponse)
     async def config_panel(request: Request):
@@ -208,15 +221,17 @@ def setup_routes(app: FastAPI, templates: Jinja2Templates):
                             height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
                             fps = cap.get(cv2.CAP_PROP_FPS)
 
-                            detected_cameras.append({
-                                "id": f"usb_camera_{i}",
-                                "name": f"USB Camera {i}",
-                                "source": f"/dev/video{i}",
-                                "type": "usb",
-                                "resolution": f"{width}x{height}",
-                                "fps": fps,
-                                "status": "detected"
-                            })
+                            detected_cameras.append(
+                                {
+                                    "id": f"usb_camera_{i}",
+                                    "name": f"USB Camera {i}",
+                                    "source": f"/dev/video{i}",
+                                    "type": "usb",
+                                    "resolution": f"{width}x{height}",
+                                    "fps": fps,
+                                    "status": "detected",
+                                }
+                            )
                         cap.release()
 
             if request.scan_rtsp:
@@ -224,15 +239,17 @@ def setup_routes(app: FastAPI, templates: Jinja2Templates):
                 for url in request.rtsp_urls:
                     result = await test_rtsp_camera(url, request.timeout_seconds)
                     if result.success:
-                        detected_cameras.append({
-                            "id": f"rtsp_camera_{len(detected_cameras)}",
-                            "name": f"RTSP Camera ({url})",
-                            "source": url,
-                            "type": "rtsp",
-                            "resolution": result.resolution,
-                            "fps": result.fps,
-                            "status": "detected"
-                        })
+                        detected_cameras.append(
+                            {
+                                "id": f"rtsp_camera_{len(detected_cameras)}",
+                                "name": f"RTSP Camera ({url})",
+                                "source": url,
+                                "type": "rtsp",
+                                "resolution": result.resolution,
+                                "fps": result.fps,
+                                "status": "detected",
+                            }
+                        )
 
             return {"cameras": detected_cameras, "total_found": len(detected_cameras)}
 
@@ -250,21 +267,15 @@ def setup_routes(app: FastAPI, templates: Jinja2Templates):
                     "success": result.success,
                     "resolution": result.resolution,
                     "fps": result.fps,
-                    "error": result.error_message
+                    "error": result.error_message,
                 }
             else:
                 # Test USB camera
                 success, message = test_usb_camera(request.source)
-                return {
-                    "success": success,
-                    "message": message
-                }
+                return {"success": success, "message": message}
 
         except Exception as e:
-            return {
-                "success": False,
-                "error": str(e)
-            }
+            return {"success": False, "error": str(e)}
 
     @app.post("/api/setup/configure-cameras")
     async def configure_cameras(cameras: List[CameraConfigRequest]):
@@ -289,19 +300,19 @@ def setup_routes(app: FastAPI, templates: Jinja2Templates):
                         "enabled": camera.recording_enabled,
                         "quality": "medium",
                         "reaction_time": 0.5,
-                        "max_duration": 300
+                        "max_duration": 300,
                     },
                     "motion_detection": {
                         "sensitivity": camera.motion_sensitivity,
                         "min_area": 500,
                         "max_zones": 5,
-                        "ignore_zones": []
+                        "ignore_zones": [],
                     },
                     "display": {
                         "min_size_percent": 10,
                         "max_size_percent": 70,
-                        "transition_speed": 0.8
-                    }
+                        "transition_speed": 0.8,
+                    },
                 }
 
             # Save configuration
@@ -310,8 +321,7 @@ def setup_routes(app: FastAPI, templates: Jinja2Templates):
             # Log configuration change
             if app_state["git_logger"]:
                 await app_state["git_logger"].log_config_change(
-                    {"cameras_configured": len(cameras)},
-                    config
+                    {"cameras_configured": len(cameras)}, config
                 )
 
             return {"success": True, "cameras_configured": len(cameras)}
@@ -327,8 +337,12 @@ def setup_routes(app: FastAPI, templates: Jinja2Templates):
             config = app_state["config_manager"].get_config()
 
             # Update system configuration
-            config["system"]["display"]["target_resolution"] = request.display_resolution
-            config["system"]["display"]["interpolation"]["quality_priority"] = request.quality_priority
+            config["system"]["display"][
+                "target_resolution"
+            ] = request.display_resolution
+            config["system"]["display"]["interpolation"][
+                "quality_priority"
+            ] = request.quality_priority
             config["streaming"]["target_fps"] = request.target_fps
             config["recording"]["enabled"] = request.recording_enabled
             config["logging"]["git"]["enabled"] = request.git_logging_enabled
@@ -357,7 +371,7 @@ def setup_routes(app: FastAPI, templates: Jinja2Templates):
                 await app_state["git_logger"].log_event(
                     "setup_completed",
                     {"timestamp": datetime.now().isoformat()},
-                    summary="Initial system setup completed"
+                    summary="Initial system setup completed",
                 )
 
             return {"success": True, "message": "Setup completed successfully"}
@@ -383,7 +397,9 @@ def setup_routes(app: FastAPI, templates: Jinja2Templates):
         """Update camera configuration."""
         try:
             if app_state["camera_manager"]:
-                await app_state["camera_manager"].update_camera_config(camera_id, updates)
+                await app_state["camera_manager"].update_camera_config(
+                    camera_id, updates
+                )
                 return {"success": True, "message": f"Camera {camera_id} updated"}
             raise HTTPException(status_code=503, detail="Camera manager not available")
         except Exception as e:
@@ -412,7 +428,9 @@ def setup_routes(app: FastAPI, templates: Jinja2Templates):
                     "zoom": camera_config.zoom,
                     "max_fragments": camera_config.max_fragments,
                     "recording": {"enabled": camera_config.recording_enabled},
-                    "motion_detection": {"sensitivity": camera_config.motion_sensitivity}
+                    "motion_detection": {
+                        "sensitivity": camera_config.motion_sensitivity
+                    },
                 }
                 camera_id = await app_state["camera_manager"].add_camera(camera_dict)
                 return {"success": True, "camera_id": camera_id}
@@ -470,7 +488,7 @@ def setup_routes(app: FastAPI, templates: Jinja2Templates):
                         "css_template": layout.css_template,
                         "efficiency": layout.layout_efficiency,
                         "fragments": len(layout.fragments),
-                        "timestamp": layout.timestamp.isoformat()
+                        "timestamp": layout.timestamp.isoformat(),
                     }
             return {"error": "No layout available"}
         except Exception as e:
@@ -525,8 +543,7 @@ def setup_routes(app: FastAPI, templates: Jinja2Templates):
                 # Log configuration change
                 if app_state["git_logger"]:
                     await app_state["git_logger"].log_config_change(
-                        {"updates": config_updates},
-                        config
+                        {"updates": config_updates}, config
                     )
 
                 return {"success": True, "updated_keys": list(config_updates.keys())}
@@ -554,7 +571,7 @@ def setup_routes(app: FastAPI, templates: Jinja2Templates):
                 "setup_mode": app_state["setup_mode"],
                 "setup_completed": app_state["setup_completed"],
                 "timestamp": datetime.now().isoformat(),
-                "components": {}
+                "components": {},
             }
 
             # Check component status
@@ -563,15 +580,17 @@ def setup_routes(app: FastAPI, templates: Jinja2Templates):
                 status["components"]["cameras"] = {
                     "status": "active",
                     "total_cameras": camera_stats["total_cameras"],
-                    "active_cameras": camera_stats["active_cameras"]
+                    "active_cameras": camera_stats["active_cameras"],
                 }
 
             if app_state["stream_processor"]:
-                stream_stats = await app_state["stream_processor"].get_performance_stats()
+                stream_stats = await app_state[
+                    "stream_processor"
+                ].get_performance_stats()
                 status["components"]["streaming"] = {
                     "status": "active",
                     "fps": stream_stats["target_fps"],
-                    "frames_processed": stream_stats["frames_processed"]
+                    "frames_processed": stream_stats["frames_processed"],
                 }
 
             if app_state["auto_config"]:
@@ -579,7 +598,7 @@ def setup_routes(app: FastAPI, templates: Jinja2Templates):
                 status["components"]["optimization"] = {
                     "status": "active",
                     "suggestions": auto_stats["suggestions_count"],
-                    "monitoring": auto_stats["monitoring_enabled"]
+                    "monitoring": auto_stats["monitoring_enabled"],
                 }
 
             return status
@@ -594,13 +613,19 @@ def setup_routes(app: FastAPI, templates: Jinja2Templates):
             metrics = {}
 
             if app_state["camera_manager"]:
-                metrics["cameras"] = await app_state["camera_manager"].get_performance_stats()
+                metrics["cameras"] = await app_state[
+                    "camera_manager"
+                ].get_performance_stats()
 
             if app_state["stream_processor"]:
-                metrics["streaming"] = await app_state["stream_processor"].get_performance_stats()
+                metrics["streaming"] = await app_state[
+                    "stream_processor"
+                ].get_performance_stats()
 
             if app_state["auto_config"]:
-                metrics["optimization"] = await app_state["auto_config"].get_optimization_status()
+                metrics["optimization"] = await app_state[
+                    "auto_config"
+                ].get_optimization_status()
 
             if app_state["git_logger"]:
                 metrics["logging"] = await app_state["git_logger"].get_statistics()
@@ -617,7 +642,9 @@ def setup_routes(app: FastAPI, templates: Jinja2Templates):
         """Get timeline events."""
         try:
             if app_state["git_logger"]:
-                events = await app_state["git_logger"].get_timeline_events(limit, filter_type)
+                events = await app_state["git_logger"].get_timeline_events(
+                    limit, filter_type
+                )
                 return {"events": events, "total": len(events)}
             return {"events": [], "total": 0}
         except Exception as e:
@@ -649,21 +676,27 @@ def setup_routes(app: FastAPI, templates: Jinja2Templates):
                     # Get current status
                     data = {
                         "timestamp": datetime.now().isoformat(),
-                        "type": "status_update"
+                        "type": "status_update",
                     }
 
                     # Add camera status
                     if app_state["camera_manager"]:
-                        data["cameras"] = await app_state["camera_manager"].get_camera_status()
+                        data["cameras"] = await app_state[
+                            "camera_manager"
+                        ].get_camera_status()
 
                     # Add layout status
                     if app_state["layout_engine"]:
-                        layout_stats = await app_state["layout_engine"].get_layout_stats()
+                        layout_stats = await app_state[
+                            "layout_engine"
+                        ].get_layout_stats()
                         data["layout"] = layout_stats
 
                     # Add performance data
                     if app_state["auto_config"]:
-                        perf_data = await app_state["auto_config"].get_optimization_status()
+                        perf_data = await app_state[
+                            "auto_config"
+                        ].get_optimization_status()
                         data["performance"] = perf_data
 
                     yield f"data: {json.dumps(data)}\n\n"
@@ -680,8 +713,8 @@ def setup_routes(app: FastAPI, templates: Jinja2Templates):
             headers={
                 "Cache-Control": "no-cache",
                 "Connection": "keep-alive",
-                "Content-Type": "text/event-stream"
-            }
+                "Content-Type": "text/event-stream",
+            },
         )
 
     # ============ UTILITY FUNCTIONS ============
@@ -694,9 +727,7 @@ def setup_routes(app: FastAPI, templates: Jinja2Templates):
 
             if not cap.isOpened():
                 return RTSPTestResult(
-                    url=url,
-                    success=False,
-                    error_message="Failed to open RTSP stream"
+                    url=url, success=False, error_message="Failed to open RTSP stream"
                 )
 
             # Try to read a frame with timeout
@@ -708,7 +739,7 @@ def setup_routes(app: FastAPI, templates: Jinja2Templates):
                 return RTSPTestResult(
                     url=url,
                     success=False,
-                    error_message="Failed to read frame from RTSP stream"
+                    error_message="Failed to read frame from RTSP stream",
                 )
 
             # Get stream properties
@@ -722,15 +753,11 @@ def setup_routes(app: FastAPI, templates: Jinja2Templates):
                 url=url,
                 success=True,
                 resolution=f"{width}x{height}",
-                fps=fps if fps > 0 else None
+                fps=fps if fps > 0 else None,
             )
 
         except Exception as e:
-            return RTSPTestResult(
-                url=url,
-                success=False,
-                error_message=str(e)
-            )
+            return RTSPTestResult(url=url, success=False, error_message=str(e))
 
     def test_usb_camera(source: str) -> tuple[bool, str]:
         """Test USB camera connection."""
@@ -762,7 +789,7 @@ def setup_routes(app: FastAPI, templates: Jinja2Templates):
 
     def _set_nested_value(config: Dict, key: str, value: Any) -> None:
         """Set nested configuration value using dot notation."""
-        keys = key.split('.')
+        keys = key.split(".")
         current = config
 
         for k in keys[:-1]:
@@ -787,7 +814,7 @@ def ensure_templates_directory():
 
 def create_basic_setup_template(template_path: Path):
     """Create basic setup template."""
-    template_content = '''<!DOCTYPE html>
+    template_content = """<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -933,9 +960,9 @@ def create_basic_setup_template(template_path: Path):
 
     <script src="/static/js/setup-wizard.js"></script>
 </body>
-</html>'''
+</html>"""
 
-    with open(template_path, 'w') as f:
+    with open(template_path, "w") as f:
         f.write(template_content)
 
 
@@ -945,10 +972,8 @@ if __name__ == "__main__":
 
     app = FastAPI(title="ZoomCam Setup")
 
-
     @app.get("/")
     async def index():
         return {"message": "ZoomCam API Server", "setup_mode": True}
-
 
     uvicorn.run(app, host="0.0.0.0", port=8000)

@@ -19,6 +19,7 @@ from zoomcam.utils.exceptions import LayoutError
 @dataclass
 class CameraFragment:
     """Represents a fragment of a camera view."""
+
     camera_id: str
     fragment_id: str
     bbox: Tuple[int, int, int, int]  # x, y, width, height
@@ -30,6 +31,7 @@ class CameraFragment:
 @dataclass
 class LayoutCell:
     """Represents a cell in the layout grid."""
+
     x: int
     y: int
     width: int
@@ -41,6 +43,7 @@ class LayoutCell:
 @dataclass
 class LayoutResult:
     """Result of layout calculation."""
+
     grid_columns: str
     grid_rows: str
     grid_areas: str
@@ -66,7 +69,9 @@ class LayoutEngine:
 
     def __init__(self, config: Dict[str, Any], screen_resolution: str):
         self.config = config
-        self.screen_width, self.screen_height = self._parse_resolution(screen_resolution)
+        self.screen_width, self.screen_height = self._parse_resolution(
+            screen_resolution
+        )
 
         # Layout parameters
         self.algorithm = config.get("algorithm", "adaptive_grid")
@@ -85,7 +90,7 @@ class LayoutEngine:
         self.css_templates = {
             "equal_grid": self._generate_equal_grid_css,
             "priority_based": self._generate_priority_based_css,
-            "adaptive_flow": self._generate_adaptive_flow_css
+            "adaptive_flow": self._generate_adaptive_flow_css,
         }
 
         logging.info(f"Layout Engine initialized for {screen_resolution}")
@@ -105,9 +110,7 @@ class LayoutEngine:
             return (1920, 1080)  # Default
 
     async def update_camera_activity(
-            self,
-            camera_id: str,
-            motion_zones: List[Dict[str, Any]]
+        self, camera_id: str, motion_zones: List[Dict[str, Any]]
     ) -> None:
         """Update camera activity and motion zones."""
         current_time = datetime.now()
@@ -127,7 +130,7 @@ class LayoutEngine:
                     bbox=zone.get("bbox", (0, 0, 100, 100)),
                     activity_level=zone.get("activity_level", 0.0),
                     priority=zone.get("priority", 1),
-                    last_activity=current_time
+                    last_activity=current_time,
                 )
                 self.camera_fragments[camera_id].append(fragment)
         else:
@@ -138,7 +141,8 @@ class LayoutEngine:
                 bbox=(0, 0, 100, 100),
                 activity_level=0.0,
                 priority=0,
-                last_activity=current_time - timedelta(seconds=self.inactive_timeout + 1)
+                last_activity=current_time
+                - timedelta(seconds=self.inactive_timeout + 1),
             )
             self.camera_fragments[camera_id].append(fragment)
 
@@ -152,7 +156,8 @@ class LayoutEngine:
         # Keep only recent history (last 5 minutes)
         cutoff_time = current_time - timedelta(minutes=5)
         self.activity_history[camera_id] = [
-            (time, activity) for time, activity in self.activity_history[camera_id]
+            (time, activity)
+            for time, activity in self.activity_history[camera_id]
             if time > cutoff_time
         ]
 
@@ -174,8 +179,7 @@ class LayoutEngine:
 
             # Sort fragments by priority and activity
             all_fragments.sort(
-                key=lambda f: (f.priority, f.activity_level),
-                reverse=True
+                key=lambda f: (f.priority, f.activity_level), reverse=True
             )
 
             # Determine grid size
@@ -189,11 +193,15 @@ class LayoutEngine:
 
             # Allocate sizes based on activity
             if self.algorithm == "adaptive_grid":
-                layout = await self._calculate_adaptive_grid(all_fragments, grid_cols, grid_rows)
+                layout = await self._calculate_adaptive_grid(
+                    all_fragments, grid_cols, grid_rows
+                )
             elif self.algorithm == "priority_based":
                 layout = await self._calculate_priority_layout(all_fragments)
             else:
-                layout = await self._calculate_equal_layout(all_fragments, grid_cols, grid_rows)
+                layout = await self._calculate_equal_layout(
+                    all_fragments, grid_cols, grid_rows
+                )
 
             self.current_layout = layout
             return layout
@@ -221,10 +229,7 @@ class LayoutEngine:
             return (cols, rows)
 
     async def _calculate_adaptive_grid(
-            self,
-            fragments: List[CameraFragment],
-            grid_cols: int,
-            grid_rows: int
+        self, fragments: List[CameraFragment], grid_cols: int, grid_rows: int
     ) -> LayoutResult:
         """Calculate adaptive grid layout with activity-based sizing."""
 
@@ -235,7 +240,9 @@ class LayoutEngine:
             return await self._calculate_equal_layout(fragments, grid_cols, grid_rows)
 
         # Sort fragments by activity (highest first)
-        active_fragments = sorted(fragments, key=lambda f: f.activity_level, reverse=True)
+        active_fragments = sorted(
+            fragments, key=lambda f: f.activity_level, reverse=True
+        )
 
         # Create cells with proportional sizing
         cells = []
@@ -284,7 +291,7 @@ class LayoutEngine:
                         width=1,
                         height=1,
                         camera_fragment=fragment,
-                        css_grid_area=area_name
+                        css_grid_area=area_name,
                     )
                     cells.append(cell)
                     row_areas.append(area_name)
@@ -314,14 +321,11 @@ class LayoutEngine:
             total_active_area=total_active_area,
             layout_efficiency=layout_efficiency,
             css_template=css_template,
-            timestamp=datetime.now()
+            timestamp=datetime.now(),
         )
 
     async def _calculate_equal_layout(
-            self,
-            fragments: List[CameraFragment],
-            grid_cols: int,
-            grid_rows: int
+        self, fragments: List[CameraFragment], grid_cols: int, grid_rows: int
     ) -> LayoutResult:
         """Calculate equal-sized grid layout."""
         cells = []
@@ -346,7 +350,7 @@ class LayoutEngine:
                         width=1,
                         height=1,
                         camera_fragment=fragment,
-                        css_grid_area=area_name
+                        css_grid_area=area_name,
                     )
                     cells.append(cell)
                     row_areas.append(area_name)
@@ -371,7 +375,7 @@ class LayoutEngine:
             total_active_area=len(fragments),
             layout_efficiency=1.0,
             css_template=css_template,
-            timestamp=datetime.now()
+            timestamp=datetime.now(),
         )
 
     async def _create_default_layout(self) -> LayoutResult:
@@ -383,7 +387,7 @@ class LayoutEngine:
             bbox=(0, 0, 100, 100),
             activity_level=0.0,
             priority=0,
-            last_activity=datetime.now()
+            last_activity=datetime.now(),
         )
 
         cell = LayoutCell(
@@ -392,10 +396,10 @@ class LayoutEngine:
             width=1,
             height=1,
             camera_fragment=placeholder_fragment,
-            css_grid_area="no_cameras"
+            css_grid_area="no_cameras",
         )
 
-        css_template = '''
+        css_template = """
         .zoomcam-grid {
             display: grid;
             grid-template-columns: 1fr;
@@ -414,7 +418,7 @@ class LayoutEngine:
             color: #666;
             font-size: 2em;
         }
-        '''
+        """
 
         return LayoutResult(
             grid_columns="1fr",
@@ -425,18 +429,18 @@ class LayoutEngine:
             total_active_area=0.0,
             layout_efficiency=0.0,
             css_template=css_template,
-            timestamp=datetime.now()
+            timestamp=datetime.now(),
         )
 
     def _generate_adaptive_grid_css(
-            self,
-            grid_columns: str,
-            grid_rows: str,
-            grid_areas: str,
-            cells: List[LayoutCell]
+        self,
+        grid_columns: str,
+        grid_rows: str,
+        grid_areas: str,
+        cells: List[LayoutCell],
     ) -> str:
         """Generate CSS for adaptive grid layout."""
-        css = f'''
+        css = f"""
         .zoomcam-grid {{
             display: grid;
             grid-template-columns: {grid_columns};
@@ -448,7 +452,7 @@ class LayoutEngine:
             height: 100vh;
             transition: all {self.transition_speed}s ease-in-out;
         }}
-        '''
+        """
 
         # Add styles for each cell
         for cell in cells:
@@ -464,7 +468,7 @@ class LayoutEngine:
                 else:
                     border_color = "#666666"  # Gray for low activity
 
-                css += f'''
+                css += f"""
         .{area_class} {{
             grid-area: {cell.css_grid_area};
             border: {self.border_width}px solid {border_color};
@@ -478,29 +482,33 @@ class LayoutEngine:
             border-color: #ffffff;
             z-index: 10;
         }}
-        '''
+        """
 
         return css
 
     def _generate_equal_grid_css(
-            self,
-            grid_columns: str,
-            grid_rows: str,
-            grid_areas: str,
-            cells: List[LayoutCell]
+        self,
+        grid_columns: str,
+        grid_rows: str,
+        grid_areas: str,
+        cells: List[LayoutCell],
     ) -> str:
         """Generate CSS for equal grid layout."""
-        return self._generate_adaptive_grid_css(grid_columns, grid_rows, grid_areas, cells)
+        return self._generate_adaptive_grid_css(
+            grid_columns, grid_rows, grid_areas, cells
+        )
 
     def _generate_priority_based_css(
-            self,
-            grid_columns: str,
-            grid_rows: str,
-            grid_areas: str,
-            cells: List[LayoutCell]
+        self,
+        grid_columns: str,
+        grid_rows: str,
+        grid_areas: str,
+        cells: List[LayoutCell],
     ) -> str:
         """Generate CSS for priority-based layout."""
-        return self._generate_adaptive_grid_css(grid_columns, grid_rows, grid_areas, cells)
+        return self._generate_adaptive_grid_css(
+            grid_columns, grid_rows, grid_areas, cells
+        )
 
     async def get_layout_stats(self) -> Dict[str, Any]:
         """Get current layout statistics."""
@@ -510,7 +518,9 @@ class LayoutEngine:
         return {
             "timestamp": self.current_layout.timestamp.isoformat(),
             "total_fragments": len(self.current_layout.fragments),
-            "active_fragments": len([f for f in self.current_layout.fragments if f.activity_level > 0.1]),
+            "active_fragments": len(
+                [f for f in self.current_layout.fragments if f.activity_level > 0.1]
+            ),
             "layout_efficiency": self.current_layout.layout_efficiency,
             "total_active_area": self.current_layout.total_active_area,
             "grid_size": f"{len(self.current_layout.grid_columns.split())}x{len(self.current_layout.grid_rows.split())}",
@@ -520,10 +530,10 @@ class LayoutEngine:
                     "fragment_id": f.fragment_id,
                     "activity_level": f.activity_level,
                     "priority": f.priority,
-                    "last_activity": f.last_activity.isoformat()
+                    "last_activity": f.last_activity.isoformat(),
                 }
                 for f in self.current_layout.fragments
-            ]
+            ],
         }
 
     async def force_layout_recalculation(self) -> LayoutResult:

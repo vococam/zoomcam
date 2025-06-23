@@ -21,16 +21,15 @@ def get_default_user_config() -> Dict[str, Any]:
                 "interpolation": {
                     "enabled": True,
                     "algorithm": "lanczos",
-                    "quality_priority": "balanced"
-                }
+                    "quality_priority": "balanced",
+                },
             },
             "performance": {
                 "max_cpu_usage": 80,
                 "memory_limit": 512,
-                "gpu_acceleration": "auto"
-            }
+                "gpu_acceleration": "auto",
+            },
         },
-
         "cameras": {
             "camera_1": {
                 "enabled": True,
@@ -39,29 +38,25 @@ def get_default_user_config() -> Dict[str, Any]:
                 "resolution": "auto",
                 "zoom": 3.0,
                 "max_fragments": 2,
-
                 "recording": {
                     "enabled": True,
                     "quality": "medium",
                     "reaction_time": 0.5,
-                    "max_duration": 300
+                    "max_duration": 300,
                 },
-
                 "motion_detection": {
                     "sensitivity": 0.3,
                     "min_area": 500,
                     "max_zones": 5,
-                    "ignore_zones": []
+                    "ignore_zones": [],
                 },
-
                 "display": {
                     "min_size_percent": 10,
                     "max_size_percent": 70,
-                    "transition_speed": 0.8
-                }
+                    "transition_speed": 0.8,
+                },
             }
         },
-
         "layout": {
             "algorithm": "adaptive_grid",
             "gap_size": 5,
@@ -69,32 +64,21 @@ def get_default_user_config() -> Dict[str, Any]:
             "inactive_timeout": 30,
             "css_mode": True,
             "responsive_breakpoints": [
-                {
-                    "resolution": "1920x1080",
-                    "columns": 4,
-                    "rows": 3
-                },
-                {
-                    "resolution": "1280x720",
-                    "columns": 3,
-                    "rows": 2
-                }
-            ]
+                {"resolution": "1920x1080", "columns": 4, "rows": 3},
+                {"resolution": "1280x720", "columns": 3, "rows": 2},
+            ],
         },
-
         "streaming": {
             "hls_output_dir": "/tmp/zoomcam_hls",
             "segment_duration": 2,
             "segment_count": 10,
-            "bitrate": "2M"
+            "bitrate": "2M",
         },
-
         "recording": {
             "output_dir": "/var/lib/zoomcam/recordings",
             "cleanup_days": 7,
-            "compression": "h264_medium"
+            "compression": "h264_medium",
         },
-
         "logging": {
             "method": "git_timeline",
             "git": {
@@ -103,14 +87,10 @@ def get_default_user_config() -> Dict[str, Any]:
                 "auto_commit": True,
                 "commit_interval": 30,
                 "screenshot_interval": 5,
-                "max_history_days": 30
+                "max_history_days": 30,
             },
-            "screenshots": {
-                "enabled": True,
-                "quality": 80,
-                "format": "jpg"
-            }
-        }
+            "screenshots": {"enabled": True, "quality": 80, "format": "jpg"},
+        },
     }
 
 
@@ -122,24 +102,22 @@ def get_default_auto_config() -> Dict[str, Any]:
                 "actual_resolution": "1920x1080",
                 "refresh_rate": 60,
                 "color_depth": 24,
-                "aspect_ratio": "16:9"
+                "aspect_ratio": "16:9",
             },
             "performance": {
                 "current_cpu_usage": 0.0,
                 "memory_usage": 0,
                 "gpu_acceleration": False,
-                "last_optimization": None
-            }
+                "last_optimization": None,
+            },
         },
-
         "cameras": {},
-
         "layout": {
             "current_grid": "1x1",
             "active_fragments": 0,
             "last_recalculation": None,
-            "css_grid_state": ""
-        }
+            "css_grid_state": "",
+        },
     }
 
 
@@ -154,9 +132,8 @@ def get_default_css_layouts() -> Dict[str, Any]:
                 grid-template-columns: 1fr 1fr;
                 grid-template-rows: 1fr 1fr;
                 gap: 5px;
-                """
+                """,
             },
-
             "adaptive_priority": {
                 "name": "Adaptive Priority Layout",
                 "css": """
@@ -167,9 +144,8 @@ def get_default_css_layouts() -> Dict[str, Any]:
                   "main secondary"
                   "tertiary quaternary";
                 gap: 5px;
-                """
+                """,
             },
-
             "triple_split": {
                 "name": "Triple Split Layout",
                 "css": """
@@ -177,9 +153,8 @@ def get_default_css_layouts() -> Dict[str, Any]:
                 grid-template-columns: 1.5fr 1fr 1fr;
                 grid-template-rows: 1fr 1fr;
                 gap: 3px;
-                """
+                """,
             },
-
             "single_focus": {
                 "name": "Single Camera Focus",
                 "css": """
@@ -187,10 +162,9 @@ def get_default_css_layouts() -> Dict[str, Any]:
                 grid-template-columns: 1fr;
                 grid-template-rows: 1fr;
                 gap: 0px;
-                """
-            }
+                """,
+            },
         },
-
         "camera_styles": {
             "active": {
                 "css": """
@@ -201,7 +175,6 @@ def get_default_css_layouts() -> Dict[str, Any]:
                 transition: all 0.3s ease;
                 """
             },
-
             "inactive": {
                 "css": """
                 border: 1px solid #666;
@@ -209,7 +182,6 @@ def get_default_css_layouts() -> Dict[str, Any]:
                 transition: all 0.3s ease;
                 """
             },
-
             "no_signal": {
                 "css": """
                 background: #1a1a1a;
@@ -221,16 +193,14 @@ def get_default_css_layouts() -> Dict[str, Any]:
                 font-size: 1.5em;
                 """
             },
-
             "motion_detected": {
                 "css": """
                 border: 3px solid #ffaa00;
                 box-shadow: 0 0 15px rgba(255,170,0,0.6);
                 animation: motion-pulse 2s infinite;
                 """
-            }
+            },
         },
-
         "animations": {
             "motion-pulse": """
             @keyframes motion-pulse {
@@ -239,7 +209,6 @@ def get_default_css_layouts() -> Dict[str, Any]:
                 100% { box-shadow: 0 0 15px rgba(255,170,0,0.6); }
             }
             """,
-
             "layout-transition": """
             .zoomcam-grid {
                 transition: grid-template-columns 0.8s ease-in-out,
@@ -250,8 +219,8 @@ def get_default_css_layouts() -> Dict[str, Any]:
             .camera-fragment {
                 transition: all 0.5s ease-in-out;
             }
-            """
-        }
+            """,
+        },
     }
 
 
@@ -264,66 +233,59 @@ def get_default_interpolation_config() -> Dict[str, Any]:
                 "cv2_flag": 0,  # cv2.INTER_NEAREST
                 "quality": 1,
                 "performance": 10,
-                "description": "Fastest, lowest quality"
+                "description": "Fastest, lowest quality",
             },
-
             "linear": {
                 "name": "Bilinear",
                 "cv2_flag": 1,  # cv2.INTER_LINEAR
                 "quality": 4,
                 "performance": 8,
-                "description": "Good balance of speed and quality"
+                "description": "Good balance of speed and quality",
             },
-
             "cubic": {
                 "name": "Bicubic",
                 "cv2_flag": 2,  # cv2.INTER_CUBIC
                 "quality": 7,
                 "performance": 5,
-                "description": "High quality, moderate speed"
+                "description": "High quality, moderate speed",
             },
-
             "lanczos": {
                 "name": "Lanczos",
                 "cv2_flag": 4,  # cv2.INTER_LANCZOS4
                 "quality": 9,
                 "performance": 3,
-                "description": "Highest quality, slower"
-            }
+                "description": "Highest quality, slower",
+            },
         },
-
         "quality_profiles": {
             "performance": {
                 "name": "Performance Priority",
                 "upscale_algorithm": "linear",
                 "downscale_algorithm": "linear",
                 "sharpening": 0.0,
-                "cpu_threshold": 60
+                "cpu_threshold": 60,
             },
-
             "balanced": {
                 "name": "Balanced Quality/Performance",
                 "upscale_algorithm": "cubic",
                 "downscale_algorithm": "linear",
                 "sharpening": 0.1,
-                "cpu_threshold": 75
+                "cpu_threshold": 75,
             },
-
             "quality": {
                 "name": "Quality Priority",
                 "upscale_algorithm": "lanczos",
                 "downscale_algorithm": "cubic",
                 "sharpening": 0.2,
-                "cpu_threshold": 90
-            }
+                "cpu_threshold": 90,
+            },
         },
-
         "adaptive_settings": {
             "enabled": True,
             "fallback_algorithm": "linear",
             "performance_monitoring": True,
-            "auto_adjust_quality": True
-        }
+            "auto_adjust_quality": True,
+        },
     }
 
 
@@ -333,7 +295,7 @@ def create_default_config(config_path: Path) -> None:
 
     default_config = get_default_user_config()
 
-    with open(config_path, 'w') as f:
+    with open(config_path, "w") as f:
         yaml.dump(default_config, f, default_flow_style=False, indent=2)
 
 
@@ -344,13 +306,13 @@ def create_all_default_configs(config_dir: Path) -> None:
     # User configuration
     user_config_path = config_dir / "user-config.yaml"
     if not user_config_path.exists():
-        with open(user_config_path, 'w') as f:
+        with open(user_config_path, "w") as f:
             yaml.dump(get_default_user_config(), f, default_flow_style=False, indent=2)
 
     # Auto configuration template
     auto_config_path = config_dir / "auto-config.yaml"
     if not auto_config_path.exists():
-        with open(auto_config_path, 'w') as f:
+        with open(auto_config_path, "w") as f:
             yaml.dump(get_default_auto_config(), f, default_flow_style=False, indent=2)
 
     # CSS layouts
@@ -359,7 +321,7 @@ def create_all_default_configs(config_dir: Path) -> None:
 
     layouts_path = css_dir / "layouts.yaml"
     if not layouts_path.exists():
-        with open(layouts_path, 'w') as f:
+        with open(layouts_path, "w") as f:
             yaml.dump(get_default_css_layouts(), f, default_flow_style=False, indent=2)
 
     # Interpolation configuration
@@ -368,8 +330,13 @@ def create_all_default_configs(config_dir: Path) -> None:
 
     algorithms_path = interpolation_dir / "algorithms.yaml"
     if not algorithms_path.exists():
-        with open(algorithms_path, 'w') as f:
-            yaml.dump(get_default_interpolation_config(), f, default_flow_style=False, indent=2)
+        with open(algorithms_path, "w") as f:
+            yaml.dump(
+                get_default_interpolation_config(),
+                f,
+                default_flow_style=False,
+                indent=2,
+            )
 
     # Schema validation (placeholder)
     schema_path = config_dir / "schema.yaml"
@@ -381,10 +348,10 @@ def create_all_default_configs(config_dir: Path) -> None:
                 "system.display.target_resolution": "string matching pattern \\d+x\\d+",
                 "cameras.*.zoom": "float between 1.0 and 10.0",
                 "layout.gap_size": "integer >= 0",
-                "streaming.bitrate": "string ending with 'K' or 'M'"
-            }
+                "streaming.bitrate": "string ending with 'K' or 'M'",
+            },
         }
-        with open(schema_path, 'w') as f:
+        with open(schema_path, "w") as f:
             yaml.dump(schema_config, f, default_flow_style=False, indent=2)
 
 
@@ -421,15 +388,19 @@ def create_example_configs(config_dir: Path) -> None:
 
     # Raspberry Pi example
     rpi_config_path = examples_dir / "raspberry-pi-example.yaml"
-    with open(rpi_config_path, 'w') as f:
-        yaml.dump(get_raspberry_pi_optimized_config(), f, default_flow_style=False, indent=2)
+    with open(rpi_config_path, "w") as f:
+        yaml.dump(
+            get_raspberry_pi_optimized_config(), f, default_flow_style=False, indent=2
+        )
 
     # High-end system example
     high_end_config = get_default_user_config()
     high_end_config["system"]["performance"]["max_cpu_usage"] = 90
     high_end_config["system"]["performance"]["memory_limit"] = 1024
     high_end_config["system"]["display"]["interpolation"]["algorithm"] = "lanczos"
-    high_end_config["system"]["display"]["interpolation"]["quality_priority"] = "quality"
+    high_end_config["system"]["display"]["interpolation"][
+        "quality_priority"
+    ] = "quality"
 
     # Add more cameras for high-end system
     for i in range(2, 5):
@@ -445,23 +416,23 @@ def create_example_configs(config_dir: Path) -> None:
                 "enabled": True,
                 "quality": "high",
                 "reaction_time": 0.2,
-                "max_duration": 600
+                "max_duration": 600,
             },
             "motion_detection": {
                 "sensitivity": 0.4,
                 "min_area": 300,
                 "max_zones": 5,
-                "ignore_zones": []
+                "ignore_zones": [],
             },
             "display": {
                 "min_size_percent": 15,
                 "max_size_percent": 80,
-                "transition_speed": 0.6
-            }
+                "transition_speed": 0.6,
+            },
         }
 
     high_end_config_path = examples_dir / "high-end-system-example.yaml"
-    with open(high_end_config_path, 'w') as f:
+    with open(high_end_config_path, "w") as f:
         yaml.dump(high_end_config, f, default_flow_style=False, indent=2)
 
     # Security focused example
@@ -472,11 +443,15 @@ def create_example_configs(config_dir: Path) -> None:
     for camera_id in security_config["cameras"]:
         security_config["cameras"][camera_id]["recording"]["enabled"] = True
         security_config["cameras"][camera_id]["recording"]["quality"] = "high"
-        security_config["cameras"][camera_id]["recording"]["max_duration"] = 1800  # 30 minutes
-        security_config["cameras"][camera_id]["motion_detection"]["sensitivity"] = 0.2  # More sensitive
+        security_config["cameras"][camera_id]["recording"][
+            "max_duration"
+        ] = 1800  # 30 minutes
+        security_config["cameras"][camera_id]["motion_detection"][
+            "sensitivity"
+        ] = 0.2  # More sensitive
 
     security_config_path = examples_dir / "security-focused-example.yaml"
-    with open(security_config_path, 'w') as f:
+    with open(security_config_path, "w") as f:
         yaml.dump(security_config, f, default_flow_style=False, indent=2)
 
 
