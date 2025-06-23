@@ -1,0 +1,128 @@
+import os
+
+# Lista wszystkich plików do utworzenia
+files_to_create = [
+    "zoomcam/pyproject.toml",
+    "zoomcam/README.md",
+    "zoomcam/.gitignore",
+    "zoomcam/.env.example",
+    "zoomcam/docker-compose.yml",
+    "zoomcam/Dockerfile",
+
+    "zoomcam/config/user-config.yaml",
+    "zoomcam/config/auto-config.yaml",
+    "zoomcam/config/history-config.yaml",
+    "zoomcam/config/schema.yaml",
+    "zoomcam/config/css/layouts.yaml",
+    "zoomcam/config/css/themes.yaml",
+    "zoomcam/config/interpolation/algorithms.yaml",
+    "zoomcam/config/interpolation/quality-profiles.yaml",
+
+    "zoomcam/src/zoomcam/__init__.py",
+    "zoomcam/src/zoomcam/main.py",
+    "zoomcam/src/zoomcam/cli.py",
+
+    "zoomcam/src/zoomcam/core/__init__.py",
+    "zoomcam/src/zoomcam/core/camera_manager.py",
+    "zoomcam/src/zoomcam/core/layout_engine.py",
+    "zoomcam/src/zoomcam/core/stream_processor.py",
+    "zoomcam/src/zoomcam/core/motion_detector.py",
+    "zoomcam/src/zoomcam/core/recorder.py",
+    "zoomcam/src/zoomcam/core/interpolation_engine.py",
+    "zoomcam/src/zoomcam/core/css_layout_manager.py",
+    "zoomcam/src/zoomcam/core/git_logger.py",
+    "zoomcam/src/zoomcam/core/auto_config_manager.py",
+
+    "zoomcam/src/zoomcam/config/__init__.py",
+    "zoomcam/src/zoomcam/config/config_manager.py",
+    "zoomcam/src/zoomcam/config/validator.py",
+    "zoomcam/src/zoomcam/config/defaults.py",
+
+    "zoomcam/src/zoomcam/web/__init__.py",
+    "zoomcam/src/zoomcam/web/api.py",
+    "zoomcam/src/zoomcam/web/events.py",
+    "zoomcam/src/zoomcam/web/auth.py",
+
+    "zoomcam/src/zoomcam/web/static/css/style.css",
+    "zoomcam/src/zoomcam/web/static/css/admin-panel.css",
+    "zoomcam/src/zoomcam/web/static/css/timeline.css",
+    "zoomcam/src/zoomcam/web/static/css/dynamic-layouts.css",
+
+    "zoomcam/src/zoomcam/web/static/js/config.js",
+    "zoomcam/src/zoomcam/web/static/js/player.js",
+    "zoomcam/src/zoomcam/web/static/js/layout-adapter.js",
+    "zoomcam/src/zoomcam/web/static/js/real-time-monitor.js",
+    "zoomcam/src/zoomcam/web/static/js/config-visualizer.js",
+    "zoomcam/src/zoomcam/web/static/js/timeline.js",
+
+    "zoomcam/src/zoomcam/web/static/images/favicon.ico",
+    "zoomcam/src/zoomcam/web/static/images/logo.png",
+    "zoomcam/src/zoomcam/web/static/images/icons/camera.svg",
+    "zoomcam/src/zoomcam/web/static/images/icons/motion.svg",
+    "zoomcam/src/zoomcam/web/static/images/icons/settings.svg",
+
+    "zoomcam/src/zoomcam/web/static/fonts/.keep",  # Używane do śledzenia pustego folderu
+
+    "zoomcam/src/zoomcam/web/templates/base.html",
+    "zoomcam/src/zoomcam/web/templates/index.html",
+    "zoomcam/src/zoomcam/web/templates/config.html",
+    "zoomcam/src/zoomcam/web/templates/admin-monitor.html",
+    "zoomcam/src/zoomcam/web/templates/timeline.html",
+    "zoomcam/src/zoomcam/web/templates/layout-preview.html",
+
+    "zoomcam/src/zoomcam/utils/__init__.py",
+    "zoomcam/src/zoomcam/utils/logger.py",
+    "zoomcam/src/zoomcam/utils/helpers.py",
+    "zoomcam/src/zoomcam/utils/performance.py",
+    "zoomcam/src/zoomcam/utils/exceptions.py",
+
+    "zoomcam/tests/__init__.py",
+    "zoomcam/tests/conftest.py",
+    "zoomcam/tests/fixtures/__init__.py",
+    "zoomcam/tests/fixtures/camera_fixtures.py",
+    "zoomcam/tests/fixtures/config_fixtures.py",
+    "zoomcam/tests/unit/__init__.py",
+    "zoomcam/tests/unit/test_camera_manager.py",
+    "zoomcam/tests/unit/test_layout_engine.py",
+    "zoomcam/tests/unit/test_config_manager.py",
+    "zoomcam/tests/unit/test_motion_detector.py",
+    "zoomcam/tests/unit/test_git_logger.py",
+    "zoomcam/tests/unit/test_interpolation.py",
+    "zoomcam/tests/integration/__init__.py",
+    "zoomcam/tests/integration/test_full_pipeline.py",
+    "zoomcam/tests/integration/test_web_api.py",
+    "zoomcam/tests/integration/test_performance.py",
+
+    "zoomcam/scripts/install.sh",
+    "zoomcam/scripts/setup_cameras.py",
+    "zoomcam/scripts/performance_test.py",
+    "zoomcam/scripts/backup_config.py",
+    "zoomcam/scripts/migrate_config.py",
+    "zoomcam/scripts/benchmark.py",
+
+    "zoomcam/docs/installation.md",
+    "zoomcam/docs/configuration.md",
+    "zoomcam/docs/api.md",
+    "zoomcam/docs/troubleshooting.md",
+    "zoomcam/docs/performance-tuning.md",
+    "zoomcam/docs/raspberry-pi-setup.md",
+    "zoomcam/docs/development.md",
+
+    "zoomcam/logs/git-repository/.keep",
+    "zoomcam/logs/screenshots/.keep",
+    "zoomcam/logs/performance/.keep",
+    "zoomcam/logs/recordings/.keep",
+    "zoomcam/logs/hls-output/.keep",
+
+    "zoomcam/systemd/zoomcam.service",
+    "zoomcam/systemd/zoomcam-setup.sh",
+]
+
+# Tworzenie plików i folderów
+for filepath in files_to_create:
+    os.makedirs(os.path.dirname(filepath), exist_ok=True)
+    if not filepath.endswith(".keep"):
+        with open(filepath, "w", encoding="utf-8") as f:
+            pass  # Tworzy pusty plik
+
+print("✅ Struktura katalogów i plików została utworzona.")
