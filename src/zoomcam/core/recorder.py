@@ -7,10 +7,6 @@ automatic file management, compression, and storage optimization.
 """
 
 import asyncio
-import concurrent.futures
-import hashlib
-import json
-import logging
 import queue
 import shutil
 import subprocess
@@ -24,20 +20,13 @@ from typing import Any, Callable, Dict, List, Optional, Tuple
 
 import cv2
 
-from zoomcam.utils.exceptions import (
-    ErrorCategory,
-    ErrorSeverity,
-    ZoomCamError,
-    handle_exception,
-)
 from zoomcam.utils.helpers import (
     cleanup_old_files,
     ensure_directory,
     format_bytes,
-    safe_filename,
 )
 from zoomcam.utils.logger import get_logger, performance_context
-from zoomcam.utils.performance import global_profiler, monitor_performance
+from zoomcam.utils.performance import global_profiler
 
 
 class RecordingState(Enum):
