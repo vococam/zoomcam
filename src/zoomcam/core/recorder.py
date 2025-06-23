@@ -274,9 +274,8 @@ class CameraRecorder:
             self.state = RecordingState.RECORDING
 
             # Create recording session
-            session_id = (
-                f"{self.config.camera_id}_{start_time.strftime('%Y%m%d_%H%M%S')}"
-            )
+            timestamp = start_time.strftime('%Y%m%d_%H%M%S')
+            session_id = f"{self.config.camera_id}_{timestamp}"
             self.current_session = RecordingSession(
                 session_id=session_id,
                 camera_id=self.config.camera_id,
@@ -399,36 +398,24 @@ class CameraRecorder:
 
             # Add motion event to session
             if motion_data and self.current_session:
-                self.current_session.motion_events.append(
-                    {
-                        "timestamp": timestamp.isoformat(),
-                        "activity_level": motion_data.get("activity_level", 0.0),
-                        "zones": len(motion_data.get("zones", [])),
-                    }
-                )
+                self.current_session.motion_events.append({
+                    "timestamp": timestamp.isoformat(),
+                    "activity_level": motion_data.get("activity_level", 0.0),
+                    "zones": len(motion_data.get("zones", []))
+                })
 
     async def _write_frame(self, frame: np.ndarray, timestamp: datetime):
-        """Write frame to recording."""
-        try:
-            if not self.current_session:
-                return
+        """Write frame to current recording."""
+        if not self.current_session:
+            return
 
+        try:
             # Resize frame if needed
             if self.config.resolution:
                 frame = cv2.resize(frame, self.config.resolution)
 
             # Write frame based on encoder type
-            if self.video_writer:
-                # OpenCV writer
-                success = self.video_writer.write(frame)
-                if not success:
-                    self.frames_dropped += 1
-                    self.logger.warning("Failed to write frame with OpenCV")
-                else:
-                    self.frames_recorded += 1
-                    self.current_session.frame_count += 1
-
-            elif self.encoder_process:
+            if self.encoder_process:
                 # FFmpeg encoder
                 try:
                     self.encoder_process.stdin.write(frame.tobytes())
@@ -441,6 +428,19 @@ class CameraRecorder:
                 except Exception as e:
                     self.logger.error(f"Error writing to FFmpeg: {e}")
                     self.frames_dropped += 1
+            elif self.video_writer:
+                # OpenCV writer
+                success = self.video_writer.write(frame)
+                if not success:
+                    self.frames_dropped += 1
+                    self.logger.warning("Failed to write frame with OpenCV")
+                else:
+                    self.frames_recorded += 1
+                    self.current_session.frame_count += 1
+
+            # Update session duration
+            duration = timestamp - self.current_session.start_time
+            self.current_session.duration_seconds = duration.total_seconds()
 
         except Exception as e:
             self.frames_dropped += 1
@@ -494,13 +494,17 @@ class CameraRecorder:
                 except Exception as e:
                     self.logger.error(f"Error in session callback: {e}")
 
-            self.logger.info(f"Recording stopped: {self.current_session.session_id}")
+            self.logger.info(
+                f"Recording stopped: {self.current_session.session_id}"
+            )
             self.current_session = None
             self.state = RecordingState.WAITING
 
         except Exception as e:
             self.state = RecordingState.ERROR
-            self.logger.error(f"Error stopping recording: {e}", exc_info=True)
+            self.logger.error(
+                f"Error stopping recording: {e}", exc_info=True
+            )
 
     async def _finalize_recording(self):
         """Finalize recording file and calculate metrics."""
