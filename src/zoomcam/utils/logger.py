@@ -80,30 +80,39 @@ class ZoomCamFormatter(logging.Formatter):
             args=record.args,
             exc_info=record.exc_info,
             func=record.funcName,
-            sinfo=None
+            sinfo=None,
         )
-        
+
         # Copy over additional attributes
         for key, value in record.__dict__.items():
-            if not hasattr(record_copy, key) and not key.startswith('_'):
+            if not hasattr(record_copy, key) and not key.startswith("_"):
                 setattr(record_copy, key, value)
-        
+
         # Only set default values if they don't exist
-        if not hasattr(record_copy, 'camera_id') or getattr(record_copy, 'camera_id', None) is None:
-            record_copy.camera_id = 'system'
-            
-        if not hasattr(record_copy, 'component') or getattr(record_copy, 'component', None) is None:
-            component = getattr(record, 'component', None)
+        if (
+            not hasattr(record_copy, "camera_id")
+            or getattr(record_copy, "camera_id", None) is None
+        ):
+            record_copy.camera_id = "system"
+
+        if (
+            not hasattr(record_copy, "component")
+            or getattr(record_copy, "component", None) is None
+        ):
+            component = getattr(record, "component", None)
             record_copy.component = component if component is not None else record.name
-            
-        if not hasattr(record_copy, 'operation') or getattr(record_copy, 'operation', None) is None:
-            record_copy.operation = getattr(record, 'operation', 'general')
+
+        if (
+            not hasattr(record_copy, "operation")
+            or getattr(record_copy, "operation", None) is None
+        ):
+            record_copy.operation = getattr(record, "operation", "general")
 
         # Add performance data if available
         if self.include_performance and PSUTIL_AVAILABLE:
-            if not hasattr(record_copy, 'cpu_percent'):
+            if not hasattr(record_copy, "cpu_percent"):
                 record_copy.cpu_percent = psutil.cpu_percent()
-            if not hasattr(record_copy, 'memory_percent'):
+            if not hasattr(record_copy, "memory_percent"):
                 record_copy.memory_percent = psutil.virtual_memory().percent
 
         try:
@@ -317,15 +326,15 @@ class ZoomCamLogger:
         """Log with context information."""
         # Create a copy of kwargs to avoid modifying the original
         extra = {}
-        
+
         # Only add context fields if they're not already in kwargs
-        if 'component' not in kwargs:
-            extra['component'] = self.context.component
-        if 'camera_id' not in kwargs and self.context.camera_id is not None:
-            extra['camera_id'] = self.context.camera_id
-        if 'operation' not in kwargs and self.context.operation is not None:
-            extra['operation'] = self.context.operation
-            
+        if "component" not in kwargs:
+            extra["component"] = self.context.component
+        if "camera_id" not in kwargs and self.context.camera_id is not None:
+            extra["camera_id"] = self.context.camera_id
+        if "operation" not in kwargs and self.context.operation is not None:
+            extra["operation"] = self.context.operation
+
         # Add any remaining kwargs that aren't None
         extra.update({k: v for k, v in kwargs.items() if v is not None})
 
@@ -467,21 +476,21 @@ class LogManager:
             root_logger.removeHandler(handler)
 
         self.handlers.clear()
-        
+
         # Set up a custom log record factory to handle additional fields
         old_factory = logging.getLogRecordFactory()
-        
+
         def record_factory(*args, **kwargs):
             record = old_factory(*args, **kwargs)
             # Ensure our custom fields exist
-            if not hasattr(record, 'camera_id'):
-                record.camera_id = 'system'
-            if not hasattr(record, 'component'):
+            if not hasattr(record, "camera_id"):
+                record.camera_id = "system"
+            if not hasattr(record, "component"):
                 record.component = record.name
-            if not hasattr(record, 'operation'):
-                record.operation = 'general'
+            if not hasattr(record, "operation"):
+                record.operation = "general"
             return record
-            
+
         logging.setLogRecordFactory(record_factory)
 
         # Create formatters

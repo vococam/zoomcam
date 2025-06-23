@@ -494,7 +494,7 @@ class LayoutEngine:
         cells: List[LayoutCell],
     ) -> str:
         """Generate CSS for adaptive flow layout.
-        
+
         This layout uses CSS Grid with auto-flow to create a responsive
         layout that adapts to the available space and fragment sizes.
         """
@@ -563,13 +563,13 @@ class LayoutEngine:
             }}
         }}
         """
-        
+
         # Add dynamic styles for each cell based on activity
         for cell in cells:
             if cell.camera_fragment:
                 fragment = cell.camera_fragment
                 area_class = f"area_{fragment.camera_id}_{fragment.fragment_id}"
-                
+
                 # Determine activity class
                 if fragment.activity_level > 0.5:
                     activity_class = "high-activity"
@@ -577,13 +577,13 @@ class LayoutEngine:
                     activity_class = "medium-activity"
                 else:
                     activity_class = ""
-                
+
                 css += f"""
         .{area_class} {{
             grid-area: {cell.css_grid_area};
         }}
         """
-                
+
                 # Add a style for the camera fragment content
                 css += f"""
         .{area_class} .camera-fragment {{
@@ -595,7 +595,7 @@ class LayoutEngine:
             border-color: {'#4caf50' if activity_class == 'high-activity' else '#ff9800' if activity_class == 'medium-activity' else '#333'};
         }}
         """
-        
+
         return css
 
     def _generate_equal_grid_css(

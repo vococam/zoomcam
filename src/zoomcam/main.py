@@ -386,7 +386,9 @@ def main() -> None:
         help="Path to configuration file",
     )
     parser.add_argument("--host", type=str, default="0.0.0.0", help="Host to bind to")
-    parser.add_argument("--port", "-p", type=int, default=5000, help="Port to bind to (default: 5000)")
+    parser.add_argument(
+        "--port", "-p", type=int, default=5000, help="Port to bind to (default: 5000)"
+    )
     parser.add_argument("--debug", "-d", action="store_true", help="Enable debug mode")
     parser.add_argument(
         "--test-config", action="store_true", help="Test configuration and exit"
