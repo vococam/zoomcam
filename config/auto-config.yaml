@@ -6,11 +6,11 @@ system:
     color_depth: 24
     refresh_rate: 60
   performance:
-    current_cpu_usage: 15.5
+    current_cpu_usage: 5.0
     fps_actual: 30.0
     gpu_acceleration: true
     last_optimization: '2025-06-23T10:15:30Z'
-    last_update: '2025-06-23T13:39:21.934503'
-    memory_available_mb: 13945.5703125
-    memory_usage: 56.0
+    last_update: '2025-06-23T13:40:33.958925'
+    memory_available_mb: 13458.9375
+    memory_usage: 57.5
     processing_time_ms: 33.0

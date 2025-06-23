@@ -1,0 +1,14 @@
+[flake8]
+max-line-length = 79
+exclude = .git,__pycache__,.venv,venv,build,dist
+per-file-ignores =
+    # Ignore line length for tests
+    tests/*: E501
+    # Ignore line length for migrations
+    */migrations/*: E501
+    # Ignore line length for auto-generated files
+    */_generated/*: E501
+    # Ignore line length for vendored code
+    */vendor/*: E501
+    # Ignore line length for setup.py
+    setup.py: E501
