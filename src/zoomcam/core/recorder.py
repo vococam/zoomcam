@@ -23,9 +23,7 @@ from typing import Any, Callable, Dict, List, Optional, Tuple
 import cv2
 import numpy as np
 
-from zoomcam.utils.helpers import (
-    cleanup_old_files, ensure_directory, format_bytes
-)
+from zoomcam.utils.helpers import cleanup_old_files, ensure_directory, format_bytes
 from zoomcam.utils.logger import get_logger
 
 
@@ -83,7 +81,8 @@ class RecorderConfig:
     max_duration: int = 300  # Maximum recording duration in seconds
     post_motion_duration: int = 5  # Continue recording after motion stops
     min_duration: int = 3  # Minimum recording duration
-    motion_threshold: float = 0.1  # Motion activity threshold to trigger recording
+    # Motion activity threshold to trigger recording
+    motion_threshold: float = 0.1
     output_format: str = "mp4"
     fps: int = 30
     resolution: Optional[Tuple[int, int]] = None  # None = use camera native
@@ -227,7 +226,8 @@ class CameraRecorder:
                     seconds=self.config.reaction_time
                 )
                 self.logger.debug(
-                    f"Motion detected, recording scheduled in {self.config.reaction_time}s"
+                    "Motion detected, recording scheduled in %ss",
+                    self.config.reaction_time,
                 )
 
     async def _handle_recording_state(self, frame: np.ndarray, current_time: datetime):
@@ -250,11 +250,10 @@ class CameraRecorder:
             should_stop = False
 
             # Maximum duration exceeded
-            if (
-                self.current_session
-                and (current_time - self.current_session.start_time).total_seconds()
-                >= self.config.max_duration
-            ):
+            session_duration = (
+                current_time - self.current_session.start_time
+            ).total_seconds()
+            if self.current_session and session_duration >= self.config.max_duration:
                 should_stop = True
                 self.logger.info("Recording stopped: maximum duration reached")
 
@@ -276,7 +275,7 @@ class CameraRecorder:
             self.state = RecordingState.RECORDING
 
             # Create recording session
-            timestamp = start_time.strftime('%Y%m%d_%H%M%S')
+            timestamp = start_time.strftime("%Y%m%d_%H%M%S")
             session_id = f"{self.config.camera_id}_{timestamp}"
             self.current_session = RecordingSession(
                 session_id=session_id,
@@ -302,7 +301,7 @@ class CameraRecorder:
             # Write buffered frames (pre-motion)
             await self._write_buffered_frames()
 
-            self.logger.info(f"Recording started: {self.current_session.session_id}")
+            self.logger.info("Recording started: %s", self.current_session.session_id)
 
         except Exception as e:
             self.state = RecordingState.ERROR
@@ -347,17 +346,28 @@ class CameraRecorder:
             ffmpeg_cmd = [
                 "ffmpeg",
                 "-y",  # Overwrite output file
-                "-f", "rawvideo",
-                "-vcodec", "rawvideo",
-                "-pix_fmt", "bgr24",
-                "-s", f"{resolution[0]}x{resolution[1]}",
-                "-r", str(self.config.fps),
-                "-i", "-",  # Input from stdin
-                "-c:v", quality.codec,
-                "-preset", quality.preset,
-                "-crf", quality.crf,
-                "-b:v", quality.bitrate,
-                "-movflags", "+faststart",  # Optimize streaming
+                "-f",
+                "rawvideo",
+                "-vcodec",
+                "rawvideo",
+                "-pix_fmt",
+                "bgr24",
+                "-s",
+                f"{resolution[0]}x{resolution[1]}",
+                "-r",
+                str(self.config.fps),
+                "-i",
+                "-",  # Input from stdin
+                "-c:v",
+                quality.codec,
+                "-preset",
+                quality.preset,
+                "-crf",
+                quality.crf,
+                "-b:v",
+                quality.bitrate,
+                "-movflags",
+                "+faststart",  # Optimize streaming
                 str(self.temp_file_path),
             ]
 
@@ -389,11 +399,13 @@ class CameraRecorder:
 
             # Add motion event to session
             if motion_data and self.current_session:
-                self.current_session.motion_events.append({
-                    "timestamp": timestamp.isoformat(),
-                    "activity_level": motion_data.get("activity_level", 0.0),
-                    "zones": len(motion_data.get("zones", []))
-                })
+                self.current_session.motion_events.append(
+                    {
+                        "timestamp": timestamp.isoformat(),
+                        "activity_level": motion_data.get("activity_level", 0.0),
+                        "zones": len(motion_data.get("zones", [])),
+                    }
+                )
 
     async def _write_frame(self, frame: np.ndarray, timestamp: datetime):
         """Write frame to current recording."""
@@ -470,7 +482,8 @@ class CameraRecorder:
             # Check minimum duration
             if self.current_session.duration_seconds < self.config.min_duration:
                 self.logger.info(
-                    f"Recording too short ({self.current_session.duration_seconds:.1f}s), deleting"
+                    "Recording too short (%.1fs), deleting",
+                    self.current_session.duration_seconds,
                 )
                 if self.temp_file_path and self.temp_file_path.exists():
                     self.temp_file_path.unlink()
@@ -486,16 +499,15 @@ class CameraRecorder:
                     self.logger.error(f"Error in session callback: {e}")
 
             self.logger.info(
-                f"Recording stopped: {self.current_session.session_id}"
+                "Recording stopped: %s",
+                self.current_session.session_id
             )
             self.current_session = None
             self.state = RecordingState.WAITING
 
         except Exception as e:
             self.state = RecordingState.ERROR
-            self.logger.error(
-                f"Error stopping recording: {e}", exc_info=True
-            )
+            self.logger.error(f"Error stopping recording: {e}", exc_info=True)
 
     async def _finalize_recording(self):
         """Finalize recording file and calculate metrics."""
