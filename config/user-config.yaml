@@ -1,0 +1,36 @@
+# config/user-config.yaml - konfiguracja użytkownika
+system:
+  display:
+    target_resolution: "1920x1080"  # docelowa rozdzielczość ekranu
+    auto_detect_resolution: true
+    interpolation:
+      enabled: true
+      algorithm: "lanczos"  # nearest, linear, cubic, lanczos
+      quality_priority: "balanced"  # performance, balanced, quality
+
+  recording:
+    git_logging:
+      enabled: true
+      repository_path: "/var/lib/zoomcam/git-log"
+      auto_commit: true
+      commit_interval: 30  # sekund
+      screenshot_interval: 5  # sekund
+      max_history_days: 30
+
+cameras:
+  camera_1:
+    source_resolution: "auto"  # lub "4K", "1080p", "720p"
+    downscale_method: "smart"  # smart, proportional, crop, stretch
+    interpolation_override: "cubic"  # nadpisanie globalnego
+    quality_target: "high"  # low, medium, high, ultra
+
+layout:
+  css_mode: true  # użyj CSS Grid zamiast canvas compositing
+  grid_template: "auto"  # lub custom CSS grid template
+  responsive_breakpoints:
+    - resolution: "1920x1080"
+      columns: 4
+      rows: 3
+    - resolution: "1280x720"
+      columns: 3
+      rows: 2

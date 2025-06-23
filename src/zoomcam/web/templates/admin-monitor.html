@@ -1,0 +1,57 @@
+<!-- templates/admin-monitor.html -->
+<div class="admin-dashboard">
+  <div class="real-time-stats">
+    <h3>Status systemu</h3>
+    <div class="metrics">
+      <div class="metric">
+        <label>CPU:</label>
+        <span id="cpu-usage">45.2%</span>
+        <div class="progress-bar">
+          <div class="progress" style="width: 45.2%"></div>
+        </div>
+      </div>
+      <div class="metric">
+        <label>Pamięć:</label>
+        <span id="memory-usage">312MB</span>
+      </div>
+      <div class="metric">
+        <label>FPS:</label>
+        <span id="fps-counter">29.7</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="camera-status">
+    <h3>Status kamer</h3>
+    <div class="camera-grid">
+      <div class="camera-card" data-camera="camera_1">
+        <h4>Kamera 1</h4>
+        <div class="resolution">
+          <span>Źródło: <span id="source-res-1">3840x2160</span></span>
+          <span>Cel: <span id="target-res-1">1920x1080</span></span>
+          <span>Skala: <span id="scale-ratio-1">0.5x</span></span>
+        </div>
+        <div class="motion-zones">
+          <div class="zone active" data-zone="zone_1">
+            Strefa 1: 75% aktywności
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="layout-visualizer">
+    <h3>Aktualny layout</h3>
+    <div class="grid-preview" id="layout-preview">
+      <!-- Dynamicznie generowany podgląd CSS -->
+    </div>
+    <textarea id="current-css" readonly></textarea>
+  </div>
+
+  <div class="config-history">
+    <h3>Historia zmian</h3>
+    <div class="timeline" id="config-timeline">
+      <!-- Lista ostatnich zmian -->
+    </div>
+  </div>
+</div>

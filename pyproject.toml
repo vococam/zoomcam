@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "zoomcam"
-version = "0.1.0"
+version = "0.1.2"
 description = "Intelligent adaptive camera monitoring system for Raspberry Pi"
 authors = ["ZoomCam Team <team@zoomcam.dev>"]
 readme = "README.md"

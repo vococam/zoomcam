@@ -1,0 +1,36 @@
+# config/monitoring.yaml
+monitoring:
+  backend: "influxdb"  # alternatywa: "git", "elasticsearch"
+
+  influxdb:
+    host: "localhost"
+    port: 8086
+    database: "zoomcam"
+    retention_policy: "30d"
+
+  metrics:
+    - name: "layout_changes"
+      fields: ["camera_count", "active_zones", "cpu_usage", "memory_usage"]
+      tags: ["event_type", "camera_id"]
+
+    - name: "performance"
+      fields: ["fps", "latency_ms", "processing_time"]
+      interval: 5  # sekund
+
+    - name: "motion_events"
+      fields: ["activity_level", "zone_size", "object_confidence"]
+      tags: ["camera_id", "zone_id", "object_type"]
+
+  screenshots:
+    storage: "filesystem"  # lub "s3", "minio"
+    path: "/var/lib/zoomcam/screenshots"
+    format: "jpg"
+
+  dashboards:
+    grafana:
+      enabled: true
+      panels:
+        - "System Performance"
+        - "Camera Activity Timeline"
+        - "Layout Changes Over Time"
+        - "Motion Detection Heatmap"

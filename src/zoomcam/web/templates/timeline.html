@@ -1,0 +1,46 @@
+<!-- templates/timeline.html -->
+<div class="timeline-container">
+  <div class="timeline-header">
+    <h2>Historia ZoomCam</h2>
+    <div class="controls">
+      <button onclick="toggleAutoRefresh()">Auto odświeżanie</button>
+      <select onchange="filterByEvent(this.value)">
+        <option value="">Wszystkie zdarzenia</option>
+        <option value="motion_detected">Ruch wykryty</option>
+        <option value="layout_change">Zmiana layoutu</option>
+        <option value="config_change">Zmiana konfiguracji</option>
+      </select>
+    </div>
+  </div>
+
+  <div class="timeline">
+    <!-- Każde zdarzenie jako karta -->
+    <div class="timeline-item" data-event="motion_detected">
+      <div class="timestamp">10:30:15</div>
+      <div class="event-content">
+        <div class="event-header">
+          <span class="event-type motion">🏃 Ruch wykryty</span>
+          <span class="camera">Kamera 1</span>
+        </div>
+        <div class="event-details">
+          <div class="screenshot">
+            <img src="/screenshots/frame_20250623_103015.jpg" alt="Zrzut ekranu">
+          </div>
+          <div class="changes">
+            <h4>Zmiany:</h4>
+            <ul>
+              <li>Layout: 2x1 → 2x1 (priority)</li>
+              <li>Kamera 1: 50% → 70%</li>
+              <li>Kamera 2: 50% → 30%</li>
+            </ul>
+          </div>
+        </div>
+        <div class="git-info">
+          <small>Commit: <code>a1b2c3d</code></small>
+        </div>
+      </div>
+    </div>
+
+    <!-- Kolejne zdarzenia... -->
+  </div>
+</div>

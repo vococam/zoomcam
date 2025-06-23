@@ -1,0 +1,16 @@
+# config/history-config.yaml - historia automatycznych zmian
+history:
+  - timestamp: "2025-06-23T10:30:15Z"
+    event: "motion_detected"
+    camera: "camera_1"
+    changes:
+      layout.camera_1.size_percent: [25, 60]
+      layout.camera_1.fragments: [1, 2]
+    screenshot: "screenshots/frame_20250623_103015.jpg"
+
+  - timestamp: "2025-06-23T10:30:45Z"
+    event: "layout_recalculated"
+    trigger: "dual_motion_detected"
+    changes:
+      layout.grid_template: ["2x2", "3x2"]
+      cameras.camera_1.motion_zones: [1, 2]

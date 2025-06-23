@@ -1,0 +1,26 @@
+
+# config/git-logging.yaml
+git_logger:
+  enabled: true
+  repository_path: "/var/lib/zoomcam/history"
+
+  commit_triggers:
+    - event: "layout_change"
+      files: ["auto-config.yaml", "screenshot.jpg"]
+    - event: "motion_detected"
+      files: ["auto-config.yaml"]
+      min_interval: 10  # sekund między commitami
+    - event: "performance_threshold"
+      condition: "cpu_usage > 90"
+      files: ["auto-config.yaml", "performance.log"]
+
+  screenshot:
+    enabled: true
+    format: "jpg"
+    quality: 85
+    resolution: "1920x1080"  # zawsze pełna rozdzielczość ekranu
+
+  retention:
+    max_commits: 10000
+    cleanup_days: 30
+    compress_old: true  # kompresja commitów starszych niż 7 dni

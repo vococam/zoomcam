@@ -1,0 +1,50 @@
+# Layout CSS konfiguracja
+layout:
+  css_mode: true
+  container_class: "zoomcam-grid"
+
+  grid_templates:
+    equal_2x2:
+      css: |
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        grid-template-rows: 1fr 1fr;
+        gap: 5px;
+
+    adaptive_priority:
+      css: |
+        display: grid;
+        grid-template-columns: 2fr 1fr;
+        grid-template-rows: 2fr 1fr;
+        grid-template-areas:
+          "main secondary"
+          "tertiary quaternary";
+        gap: 5px;
+
+    triple_split:
+      css: |
+        display: grid;
+        grid-template-columns: 1.5fr 1fr 1fr;
+        grid-template-rows: 1fr 1fr;
+        gap: 3px;
+
+  camera_styles:
+    active:
+      css: |
+        border: 3px solid #00ff00;
+        box-shadow: 0 0 10px rgba(0,255,0,0.5);
+        z-index: 10;
+
+    inactive:
+      css: |
+        opacity: 0.7;
+        border: 1px solid #666;
+
+    no_signal:
+      css: |
+        background: #1a1a1a;
+        border: 2px dashed #ff0000;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: #ff6666;

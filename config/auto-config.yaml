@@ -1,0 +1,36 @@
+# config/auto-config.yaml - wartości automatyczne (zarządzane przez system)
+system:
+  detected_display:
+    actual_resolution: "1920x1080"
+    refresh_rate: 60
+    color_depth: 24
+    aspect_ratio: "16:9"
+
+  performance:
+    current_cpu_usage: 45.2
+    memory_usage: 312  # MB
+    gpu_acceleration: true
+    last_optimization: "2025-06-23T10:15:30Z"
+
+cameras:
+  camera_1:
+    detected_resolution: "3840x2160"  # 4K źródło
+    actual_fps: 29.7
+    downscale_ratio: 0.5  # skalowanie do 1920x1080
+    current_bitrate: "8.5Mbps"
+    quality_score: 87.3  # 0-100
+
+    motion_zones:
+      - id: "zone_1"
+        bbox: [100, 150, 400, 300]  # x,y,w,h
+        activity_level: 0.75
+        last_activity: "2025-06-23T10:30:15Z"
+
+  layout:
+    current_grid: "2x2"
+    active_fragments: 3
+    last_recalculation: "2025-06-23T10:30:15Z"
+    css_grid_state: |
+      grid-template-areas: 
+        "cam1-main cam1-main cam2"
+        "cam1-zone2 cam3 cam2"
