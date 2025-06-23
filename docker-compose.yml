@@ -1,5 +1,3 @@
-version: "3.8"
-
 services:
   # ==================================================
   # ZoomCam Main Application
@@ -217,29 +215,13 @@ services:
 # ==================================================
 volumes:
   zoomcam-data:
-    name: zoomcam-data
     driver: local
-    driver_opts:
-      type: none
-      device: ${DATA_DEVICE:-./data}
   zoomcam-logs:
-    name: zoomcam-logs
     driver: local
-    driver_opts:
-      type: none
-      device: ${LOGS_DEVICE:-./logs}
   zoomcam-recordings:
-    name: zoomcam-recordings
     driver: local
-    driver_opts:
-      type: none
-      device: ${RECORDINGS_DEVICE:-./recordings}
   zoomcam-redis-data:
-    name: zoomcam-redis-data
     driver: local
-    driver_opts:
-      type: none
-      device: ${REDIS_DATA_DEVICE:-./redis-data}
 
   grafana-data:
     driver: local
