@@ -136,7 +136,7 @@ services:
 
     # Volumes
     volumes:
-      - ${REDIS_DATA_VOLUME:-redis-data}:/data
+      - zoomcam-redis-data:/data
       - ${REDIS_CONFIG_PATH:-./config/redis/redis.conf}:/usr/local/etc/redis/redis.conf:ro
 
     # Resource limits
@@ -217,33 +217,29 @@ services:
 # ==================================================
 volumes:
   zoomcam-data:
-    name: ${DATA_VOLUME:-zoomcam-data}
+    name: zoomcam-data
     driver: local
     driver_opts:
       type: none
       device: ${DATA_DEVICE:-./data}
   zoomcam-logs:
-    name: ${LOGS_VOLUME:-zoomcam-logs}
+    name: zoomcam-logs
     driver: local
     driver_opts:
       type: none
       device: ${LOGS_DEVICE:-./logs}
   zoomcam-recordings:
-    name: ${RECORDINGS_VOLUME:-zoomcam-recordings}
+    name: zoomcam-recordings
     driver: local
     driver_opts:
       type: none
       device: ${RECORDINGS_DEVICE:-./recordings}
-  redis-data:
-    name: ${REDIS_DATA_VOLUME:-redis-data}
+  zoomcam-redis-data:
+    name: zoomcam-redis-data
     driver: local
     driver_opts:
       type: none
       device: ${REDIS_DATA_DEVICE:-./redis-data}
-  influxdb-data:
-    driver: local
-  influxdb-config:
-    driver: local
 
   grafana-data:
     driver: local
