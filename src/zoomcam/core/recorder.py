@@ -24,8 +24,7 @@ import cv2
 import numpy as np
 
 from zoomcam.utils.helpers import cleanup_old_files, ensure_directory, format_bytes
-from zoomcam.utils.logger import get_logger, performance_context
-from zoomcam.utils.performance import global_profiler
+from zoomcam.utils.logger import get_logger
 
 
 class RecordingState(Enum):
@@ -105,9 +104,10 @@ class CameraRecorder:
     def __init__(self, config: RecorderConfig, output_dir: Path):
         self.config = config
         self.output_dir = output_dir
-        self.logger = get_logger(
-            "recorder", context={"camera_id": config.camera_id, "component": "recorder"}
+        logger_name = (
+            f"recorder.{self.config.camera_id}" if self.config.camera_id else "recorder"
         )
+        self.logger = get_logger(logger_name, context={"component": "recorder"})
 
         # Recording state
         self.state = RecordingState.IDLE
@@ -268,7 +268,6 @@ class CameraRecorder:
             if should_stop:
                 await self._stop_recording()
 
-    @monitor_performance
     async def _start_recording(self, start_time: datetime):
         """Start recording session."""
         try:
@@ -302,9 +301,7 @@ class CameraRecorder:
             # Write buffered frames (pre-motion)
             await self._write_buffered_frames()
 
-            self.logger.info(
-                f"Recording started: {self.current_session.session_id}"
-            )
+            self.logger.info(f"Recording started: {self.current_session.session_id}")
 
         except Exception as e:
             self.state = RecordingState.ERROR
@@ -449,7 +446,6 @@ class CameraRecorder:
             self.frames_dropped += 1
             self.logger.error(f"Error writing frame: {e}")
 
-    @monitor_performance
     async def _stop_recording(self):
         """Stop current recording session."""
         if self.state != RecordingState.RECORDING:
@@ -498,9 +494,7 @@ class CameraRecorder:
                 except Exception as e:
                     self.logger.error(f"Error in session callback: {e}")
 
-            self.logger.info(
-                f"Recording stopped: {self.current_session.session_id}"
-            )
+            self.logger.info(f"Recording stopped: {self.current_session.session_id}")
             self.current_session = None
             self.state = RecordingState.WAITING
 
@@ -756,9 +750,7 @@ class RecordingManager:
         if camera_id not in self.recorders:
             raise ValueError(f"No recorder found for camera {camera_id}")
 
-        recorder = self.recorders[camera_id]
-
-        # Force start recording
+        # TODO: Implement manual recording logic using self.recorders[camera_id]
         session_id = f"{camera_id}_manual_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
 
         # This is simplified - you'd need to implement manual recording mode
@@ -803,8 +795,6 @@ class RecordingManager:
     async def _cleanup_old_recordings(self):
         """Clean up old recordings based on retention policy."""
         try:
-            cutoff_time = datetime.now() - timedelta(days=self.cleanup_days)
-
             deleted_files = cleanup_old_files(
                 self.output_dir, max_age_days=self.cleanup_days, pattern="*.mp4"
             )
@@ -1287,7 +1277,6 @@ def calculate_storage_requirements(
 
 if __name__ == "__main__":
     # Example usage
-    import asyncio
 
     async def test_recorder():
         # Test configuration
