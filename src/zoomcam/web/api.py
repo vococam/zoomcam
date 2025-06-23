@@ -7,35 +7,27 @@ and real-time monitoring interface for ZoomCam system.
 """
 
 import asyncio
-import logging
 import json
-import yaml
-import cv2
+import logging
 from datetime import datetime
 from pathlib import Path
-from typing import Dict, List, Any, Optional
-from contextlib import asynccontextmanager
+from typing import Any, Dict, List, Optional
 
-from fastapi import FastAPI, HTTPException, Request, BackgroundTasks, Depends
-from fastapi.responses import (
-    HTMLResponse,
-    JSONResponse,
-    StreamingResponse,
-    FileResponse,
-)
+import cv2
+import uvicorn
+from fastapi import FastAPI, HTTPException, Request
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import HTMLResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
-from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
-import uvicorn
 
+from zoomcam.config.config_manager import ConfigManager
+from zoomcam.core.auto_config_manager import AutoConfigManager
 from zoomcam.core.camera_manager import CameraManager
+from zoomcam.core.git_logger import GitLogger
 from zoomcam.core.layout_engine import LayoutEngine
 from zoomcam.core.stream_processor import StreamProcessor
-from zoomcam.core.git_logger import GitLogger
-from zoomcam.core.auto_config_manager import AutoConfigManager
-from zoomcam.config.config_manager import ConfigManager
-from zoomcam.utils.exceptions import ZoomCamError
 
 
 # Pydantic models for API

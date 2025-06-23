@@ -7,19 +7,18 @@ for detailed history tracking and debugging capabilities.
 """
 
 import asyncio
-import logging
 import json
-import yaml
-import cv2
-import numpy as np
+import logging
 import shutil
+import subprocess
+from dataclasses import dataclass
 from datetime import datetime, timedelta
 from pathlib import Path
-from typing import Dict, List, Any, Optional, Union
-from dataclasses import dataclass, asdict
-import threading
-import queue
-import subprocess
+from typing import Any, Dict, List, Optional, Union
+
+import cv2
+import numpy as np
+import yaml
 
 try:
     import git

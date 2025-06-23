@@ -18,13 +18,13 @@ import uvicorn
 from fastapi import FastAPI
 
 from zoomcam.config.config_manager import ConfigManager
+from zoomcam.core.auto_config_manager import AutoConfigManager
 from zoomcam.core.camera_manager import CameraManager
+from zoomcam.core.git_logger import GitLogger
 from zoomcam.core.layout_engine import LayoutEngine
 from zoomcam.core.stream_processor import StreamProcessor
-from zoomcam.core.git_logger import GitLogger
-from zoomcam.core.auto_config_manager import AutoConfigManager
+from zoomcam.utils.exceptions import ErrorCategory, ErrorSeverity, ZoomCamError
 from zoomcam.utils.logger import setup_logging
-from zoomcam.utils.exceptions import ZoomCamError, ErrorCategory, ErrorSeverity
 from zoomcam.web.api import create_app
 
 

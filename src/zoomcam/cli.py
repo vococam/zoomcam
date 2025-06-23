@@ -5,15 +5,15 @@ ZoomCam CLI - Command Line Interface
 Provides command-line tools for setup, configuration, and management.
 """
 
-import asyncio
-import sys
 import json
-import yaml
+import sys
 from pathlib import Path
-from typing import Dict, Any, Optional
+from typing import Any, Dict
+
 import click
 import cv2
 import psutil
+import yaml
 
 from zoomcam.config.defaults import (
     create_all_default_configs,
@@ -244,7 +244,7 @@ def benchmark(ctx, duration):
     if results["avg_memory"] > 80:
         click.echo("⚠️  High memory usage detected. Consider reducing buffer sizes.")
 
-    click.echo(f"💾 Benchmark results saved to benchmark_results.json")
+    click.echo("💾 Benchmark results saved to benchmark_results.json")
 
     with open("benchmark_results.json", "w") as f:
         json.dump(results, f, indent=2)
@@ -512,6 +512,7 @@ def set_nested_config_value(config: Dict, key: str, value: Any) -> bool:
 def run_performance_benchmark(duration: int) -> Dict[str, Any]:
     """Run performance benchmark."""
     import time
+
     import numpy as np
 
     # Simulate camera processing

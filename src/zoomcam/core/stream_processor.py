@@ -8,18 +8,16 @@ for web browser consumption with real-time layout adaptation.
 
 import asyncio
 import logging
+import queue
+import subprocess
+import threading
+from dataclasses import dataclass
+from datetime import datetime, timedelta
+from pathlib import Path
+from typing import Any, Dict, List, Optional, Tuple
+
 import cv2
 import numpy as np
-import subprocess
-import os
-import shutil
-from pathlib import Path
-from datetime import datetime, timedelta
-from typing import Dict, List, Optional, Any, Tuple
-from dataclasses import dataclass
-import threading
-import queue
-import tempfile
 
 from zoomcam.core.layout_engine import LayoutEngine, LayoutResult
 from zoomcam.utils.exceptions import StreamProcessingError
@@ -632,7 +630,7 @@ class StreamProcessor:
 
     async def get_stream_url(self) -> str:
         """Get HLS stream URL."""
-        return f"/hls/stream.m3u8"
+        return "/hls/stream.m3u8"
 
     async def get_performance_stats(self) -> Dict[str, Any]:
         """Get stream processing performance statistics."""

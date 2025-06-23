@@ -7,27 +7,31 @@ with support for multiple configuration sources and formats.
 """
 
 import asyncio
-import logging
-import yaml
+import copy
+import hashlib
 import json
 import os
-from pathlib import Path
-from typing import Dict, Any, Optional, List, Union, Callable
-from dataclasses import dataclass, field
-from datetime import datetime
 import threading
-import hashlib
-import copy
+from dataclasses import dataclass
+from datetime import datetime
+from pathlib import Path
+from typing import Any, Callable, Dict, List, Optional, Union
 
-from zoomcam.config.validator import ConfigValidator
+import yaml
+
 from zoomcam.config.defaults import get_default_user_config
-from zoomcam.utils.helpers import merge_configs
+from zoomcam.config.validator import ConfigValidator
 from zoomcam.utils.exceptions import (
-    ConfigurationError,
     ConfigFileError,
+    ConfigurationError,
     ConfigValidationError,
 )
-from zoomcam.utils.helpers import backup_file, get_nested_value, set_nested_value
+from zoomcam.utils.helpers import (
+    backup_file,
+    get_nested_value,
+    merge_configs,
+    set_nested_value,
+)
 from zoomcam.utils.logger import get_logger
 
 

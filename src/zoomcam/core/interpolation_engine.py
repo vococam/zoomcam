@@ -7,14 +7,15 @@ performance optimization, and quality enhancement features.
 """
 
 import logging
+import threading
+import time
+from dataclasses import dataclass
+from enum import Enum
+from functools import lru_cache
+from typing import Any, Dict, List, Optional, Tuple
+
 import cv2
 import numpy as np
-import time
-from typing import Dict, Any, Tuple, Optional, List
-from enum import Enum
-from dataclasses import dataclass
-import threading
-from functools import lru_cache
 
 from zoomcam.utils.exceptions import InterpolationError
 
@@ -693,7 +694,6 @@ class InterpolationEngine:
 
     def get_memory_usage(self) -> Dict[str, Any]:
         """Get memory usage statistics."""
-        import sys
 
         cache_size = len(self._resolution_cache)
         metrics_size = len(self.performance_metrics)

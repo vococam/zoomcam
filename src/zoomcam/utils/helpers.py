@@ -8,23 +8,21 @@ used throughout the ZoomCam system.
 
 import asyncio
 import functools
-import time
-import os
-import sys
-import subprocess
-import platform
-import socket
-import threading
-import uuid
 import hashlib
-import json
-import yaml
+import os
+import platform
+import re
+import socket
+import subprocess
+import sys
+import threading
+import time
+import uuid
+from contextlib import asynccontextmanager, contextmanager
+from dataclasses import dataclass
 from datetime import datetime, timedelta
 from pathlib import Path
-from typing import Dict, Any, List, Optional, Tuple, Union, Callable, TypeVar, Generic
-from contextlib import contextmanager, asynccontextmanager
-from dataclasses import dataclass, asdict
-import re
+from typing import Any, Callable, Dict, List, Optional, Tuple, TypeVar, Union
 
 try:
     import psutil
@@ -610,7 +608,7 @@ def retry_on_exception(
             for attempt in range(max_attempts):
                 try:
                     return func(*args, **kwargs)
-                except exceptions as e:
+                except exceptions:
                     if attempt == max_attempts - 1:
                         raise
 
@@ -639,7 +637,7 @@ async def async_retry(
     for attempt in range(max_attempts):
         try:
             return await coro_func(*args, **kwargs)
-        except exceptions as e:
+        except exceptions:
             if attempt == max_attempts - 1:
                 raise
 

@@ -7,30 +7,42 @@ automatic file management, compression, and storage optimization.
 """
 
 import asyncio
+import concurrent.futures
+import hashlib
+import json
 import logging
-import cv2
+import queue
+import shutil
+import subprocess
 import threading
 import time
-import subprocess
-import shutil
-import hashlib
-from datetime import datetime, timedelta
-from pathlib import Path
-from typing import Dict, Any, List, Optional, Tuple, Callable
 from dataclasses import dataclass, field
+from datetime import datetime, timedelta
 from enum import Enum
-import queue
-import json
-import concurrent.futures
+from pathlib import Path
+from typing import Any, Callable, Dict, List, Optional, Tuple
 
-from zoomcam.utils.exceptions import ZoomCamError, handle_exception, ErrorSeverity, ErrorCategory
+import cv2
+
+from zoomcam.utils.exceptions import (
+    ErrorCategory,
+    ErrorSeverity,
+    ZoomCamError,
+    handle_exception,
+)
+from zoomcam.utils.helpers import (
+    cleanup_old_files,
+    ensure_directory,
+    format_bytes,
+    safe_filename,
+)
 from zoomcam.utils.logger import get_logger, performance_context
-from zoomcam.utils.helpers import safe_filename, format_bytes, ensure_directory, cleanup_old_files
-from zoomcam.utils.performance import monitor_performance, global_profiler
+from zoomcam.utils.performance import global_profiler, monitor_performance
 
 
 class RecordingState(Enum):
     """Recording states."""
+
     IDLE = "idle"
     WAITING = "waiting"  # Waiting for motion to start recording
     RECORDING = "recording"
@@ -40,6 +52,7 @@ class RecordingState(Enum):
 
 class RecordingQuality(Enum):
     """Recording quality presets."""
+
     LOW = ("libx264", "ultrafast", "23", "1M")
     MEDIUM = ("libx264", "fast", "21", "2M")
     HIGH = ("libx264", "medium", "19", "4M")
@@ -55,6 +68,7 @@ class RecordingQuality(Enum):
 @dataclass
 class RecordingSession:
     """Recording session information."""
+
     session_id: str
     camera_id: str
     start_time: datetime
@@ -72,6 +86,7 @@ class RecordingSession:
 @dataclass
 class RecorderConfig:
     """Recorder configuration for a camera."""
+
     camera_id: str
     enabled: bool = True
     quality: RecordingQuality = RecordingQuality.MEDIUM
@@ -102,8 +117,9 @@ class CameraRecorder:
     def __init__(self, config: RecorderConfig, output_dir: Path):
         self.config = config
         self.output_dir = output_dir
-        self.logger = get_logger("recorder",
-                                context={"camera_id": config.camera_id, "component": "recorder"})
+        self.logger = get_logger(
+            "recorder", context={"camera_id": config.camera_id, "component": "recorder"}
+        )
 
         # Recording state
         self.state = RecordingState.IDLE
@@ -144,10 +160,7 @@ class CameraRecorder:
         self.stop_event.clear()
 
         # Start buffer thread
-        self.buffer_thread = threading.Thread(
-            target=self._buffer_worker,
-            daemon=True
-        )
+        self.buffer_thread = threading.Thread(target=self._buffer_worker, daemon=True)
         self.buffer_thread.start()
 
         self.state = RecordingState.WAITING
@@ -174,7 +187,9 @@ class CameraRecorder:
 
         self.logger.info("Camera recorder stopped")
 
-    async def process_frame(self, frame: np.ndarray, motion_data: Optional[Dict[str, Any]] = None):
+    async def process_frame(
+        self, frame: np.ndarray, motion_data: Optional[Dict[str, Any]] = None
+    ):
         """Process incoming frame and handle recording logic."""
         try:
             current_time = datetime.now()
@@ -189,7 +204,9 @@ class CameraRecorder:
                         except queue.Empty:
                             pass
 
-                    self.frame_buffer.put_nowait((frame.copy(), current_time, motion_data))
+                    self.frame_buffer.put_nowait(
+                        (frame.copy(), current_time, motion_data)
+                    )
                 except queue.Full:
                     pass  # Skip frame if buffer is full
 
@@ -203,26 +220,36 @@ class CameraRecorder:
         except Exception as e:
             self.logger.error(f"Error processing frame: {e}", exc_info=True)
 
-    async def _handle_motion_detected(self, motion_data: Dict[str, Any], current_time: datetime):
+    async def _handle_motion_detected(
+        self, motion_data: Dict[str, Any], current_time: datetime
+    ):
         """Handle motion detection for recording triggers."""
-        activity_level = motion_data.get('activity_level', 0.0)
+        activity_level = motion_data.get("activity_level", 0.0)
 
         if activity_level >= self.config.motion_threshold:
             self.last_motion_time = current_time
 
             # Schedule recording start if not already recording
-            if self.state == RecordingState.WAITING and not self.recording_start_scheduled:
-                self.recording_start_scheduled = current_time + timedelta(seconds=self.config.reaction_time)
-                self.logger.debug(f"Motion detected, recording scheduled in {self.config.reaction_time}s")
+            if (
+                self.state == RecordingState.WAITING
+                and not self.recording_start_scheduled
+            ):
+                self.recording_start_scheduled = current_time + timedelta(
+                    seconds=self.config.reaction_time
+                )
+                self.logger.debug(
+                    f"Motion detected, recording scheduled in {self.config.reaction_time}s"
+                )
 
     async def _handle_recording_state(self, frame: np.ndarray, current_time: datetime):
         """Handle recording state machine."""
 
         # Check if recording should start
-        if (self.state == RecordingState.WAITING and
-            self.recording_start_scheduled and
-            current_time >= self.recording_start_scheduled):
-
+        if (
+            self.state == RecordingState.WAITING
+            and self.recording_start_scheduled
+            and current_time >= self.recording_start_scheduled
+        ):
             await self._start_recording(current_time)
             self.recording_start_scheduled = None
 
@@ -234,14 +261,20 @@ class CameraRecorder:
             should_stop = False
 
             # Maximum duration exceeded
-            if (self.current_session and
-                (current_time - self.current_session.start_time).total_seconds() >= self.config.max_duration):
+            if (
+                self.current_session
+                and (current_time - self.current_session.start_time).total_seconds()
+                >= self.config.max_duration
+            ):
                 should_stop = True
                 self.logger.info("Recording stopped: maximum duration reached")
 
             # No motion for post_motion_duration
-            elif (self.last_motion_time and
-                  (current_time - self.last_motion_time).total_seconds() >= self.config.post_motion_duration):
+            elif (
+                self.last_motion_time
+                and (current_time - self.last_motion_time).total_seconds()
+                >= self.config.post_motion_duration
+            ):
                 should_stop = True
                 self.logger.info("Recording stopped: no motion detected")
 
@@ -255,12 +288,14 @@ class CameraRecorder:
                 self.state = RecordingState.RECORDING
 
                 # Create recording session
-                session_id = f"{self.config.camera_id}_{start_time.strftime('%Y%m%d_%H%M%S')}"
+                session_id = (
+                    f"{self.config.camera_id}_{start_time.strftime('%Y%m%d_%H%M%S')}"
+                )
                 self.current_session = RecordingSession(
                     session_id=session_id,
                     camera_id=self.config.camera_id,
                     start_time=start_time,
-                    trigger_reason="motion_detected"
+                    trigger_reason="motion_detected",
                 )
 
                 # Create output file path
@@ -269,7 +304,10 @@ class CameraRecorder:
                 self.temp_file_path = self.output_dir / f"temp_{filename}"
 
                 # Setup video writer or encoder
-                if self.config.quality in [RecordingQuality.HIGH, RecordingQuality.ULTRA]:
+                if self.config.quality in [
+                    RecordingQuality.HIGH,
+                    RecordingQuality.ULTRA,
+                ]:
                     await self._setup_ffmpeg_encoder()
                 else:
                     await self._setup_opencv_writer()
@@ -277,7 +315,9 @@ class CameraRecorder:
                 # Write buffered frames (pre-motion)
                 await self._write_buffered_frames()
 
-                self.logger.info(f"Recording started: {self.current_session.session_id}")
+                self.logger.info(
+                    f"Recording started: {self.current_session.session_id}"
+                )
 
         except Exception as e:
             self.state = RecordingState.ERROR
@@ -289,22 +329,21 @@ class CameraRecorder:
         try:
             # Determine codec
             fourcc_map = {
-                'mp4': cv2.VideoWriter_fourcc(*'mp4v'),
-                'avi': cv2.VideoWriter_fourcc(*'XVID'),
-                'mov': cv2.VideoWriter_fourcc(*'mp4v')
+                "mp4": cv2.VideoWriter_fourcc(*"mp4v"),
+                "avi": cv2.VideoWriter_fourcc(*"XVID"),
+                "mov": cv2.VideoWriter_fourcc(*"mp4v"),
             }
 
-            fourcc = fourcc_map.get(self.config.output_format, cv2.VideoWriter_fourcc(*'mp4v'))
+            fourcc = fourcc_map.get(
+                self.config.output_format, cv2.VideoWriter_fourcc(*"mp4v")
+            )
 
             # Get frame dimensions
             resolution = self.config.resolution or (1920, 1080)  # Default resolution
 
             # Create video writer
             self.video_writer = cv2.VideoWriter(
-                str(self.temp_file_path),
-                fourcc,
-                self.config.fps,
-                resolution
+                str(self.temp_file_path), fourcc, self.config.fps, resolution
             )
 
             if not self.video_writer.isOpened():
@@ -321,20 +360,31 @@ class CameraRecorder:
 
             # FFmpeg command for high-quality encoding
             ffmpeg_cmd = [
-                'ffmpeg',
-                '-y',  # Overwrite output file
-                '-f', 'rawvideo',
-                '-vcodec', 'rawvideo',
-                '-pix_fmt', 'bgr24',
-                '-s', f'{resolution[0]}x{resolution[1]}',
-                '-r', str(self.config.fps),
-                '-i', '-',  # Input from stdin
-                '-c:v', quality.codec,
-                '-preset', quality.preset,
-                '-crf', quality.crf,
-                '-b:v', quality.bitrate,
-                '-movflags', '+faststart',  # Optimize for streaming
-                str(self.temp_file_path)
+                "ffmpeg",
+                "-y",  # Overwrite output file
+                "-f",
+                "rawvideo",
+                "-vcodec",
+                "rawvideo",
+                "-pix_fmt",
+                "bgr24",
+                "-s",
+                f"{resolution[0]}x{resolution[1]}",
+                "-r",
+                str(self.config.fps),
+                "-i",
+                "-",  # Input from stdin
+                "-c:v",
+                quality.codec,
+                "-preset",
+                quality.preset,
+                "-crf",
+                quality.crf,
+                "-b:v",
+                quality.bitrate,
+                "-movflags",
+                "+faststart",  # Optimize for streaming
+                str(self.temp_file_path),
             ]
 
             self.encoder_process = subprocess.Popen(
@@ -342,7 +392,7 @@ class CameraRecorder:
                 stdin=subprocess.PIPE,
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
-                bufsize=0
+                bufsize=0,
             )
 
         except Exception as e:
@@ -365,11 +415,13 @@ class CameraRecorder:
 
             # Add motion event to session
             if motion_data and self.current_session:
-                self.current_session.motion_events.append({
-                    'timestamp': timestamp.isoformat(),
-                    'activity_level': motion_data.get('activity_level', 0.0),
-                    'zones': len(motion_data.get('zones', []))
-                })
+                self.current_session.motion_events.append(
+                    {
+                        "timestamp": timestamp.isoformat(),
+                        "activity_level": motion_data.get("activity_level", 0.0),
+                        "zones": len(motion_data.get("zones", [])),
+                    }
+                )
 
     async def _write_frame(self, frame: np.ndarray, timestamp: datetime):
         """Write frame to recording."""
@@ -442,7 +494,9 @@ class CameraRecorder:
 
                 # Check minimum duration
                 if self.current_session.duration_seconds < self.config.min_duration:
-                    self.logger.info(f"Recording too short ({self.current_session.duration_seconds:.1f}s), deleting")
+                    self.logger.info(
+                        f"Recording too short ({self.current_session.duration_seconds:.1f}s), deleting"
+                    )
                     if self.temp_file_path and self.temp_file_path.exists():
                         self.temp_file_path.unlink()
                 else:
@@ -459,7 +513,9 @@ class CameraRecorder:
                     except Exception as e:
                         self.logger.error(f"Error in session callback: {e}")
 
-                self.logger.info(f"Recording stopped: {self.current_session.session_id}")
+                self.logger.info(
+                    f"Recording stopped: {self.current_session.session_id}"
+                )
                 self.current_session = None
                 self.state = RecordingState.WAITING
 
@@ -475,10 +531,14 @@ class CameraRecorder:
         try:
             # Move temp file to final location
             if self.temp_file_path.exists():
-                shutil.move(str(self.temp_file_path), str(self.current_session.file_path))
+                shutil.move(
+                    str(self.temp_file_path), str(self.current_session.file_path)
+                )
 
                 # Get file size
-                self.current_session.file_size_bytes = self.current_session.file_path.stat().st_size
+                self.current_session.file_size_bytes = (
+                    self.current_session.file_path.stat().st_size
+                )
 
                 # Calculate quality metrics
                 await self._calculate_quality_metrics()
@@ -508,16 +568,19 @@ class CameraRecorder:
 
                 # Compression ratio (frames vs file size)
                 expected_raw_size_mb = (
-                    self.current_session.frame_count *
-                    (1920 * 1080 * 3) / (1024 * 1024)  # Assume 1080p RGB
+                    self.current_session.frame_count
+                    * (1920 * 1080 * 3)
+                    / (1024 * 1024)  # Assume 1080p RGB
                 )
-                compression_ratio = expected_raw_size_mb / file_size_mb if file_size_mb > 0 else 0
+                compression_ratio = (
+                    expected_raw_size_mb / file_size_mb if file_size_mb > 0 else 0
+                )
 
                 self.current_session.quality_metrics = {
-                    'avg_bitrate_mbps': avg_bitrate_mbps,
-                    'compression_ratio': compression_ratio,
-                    'fps_actual': self.current_session.frame_count / duration,
-                    'file_size_mb': file_size_mb
+                    "avg_bitrate_mbps": avg_bitrate_mbps,
+                    "compression_ratio": compression_ratio,
+                    "fps_actual": self.current_session.frame_count / duration,
+                    "file_size_mb": file_size_mb,
                 }
 
         except Exception as e:
@@ -545,20 +608,28 @@ class CameraRecorder:
     def get_statistics(self) -> Dict[str, Any]:
         """Get recorder statistics."""
         return {
-            'camera_id': self.config.camera_id,
-            'state': self.state.value,
-            'frames_recorded': self.frames_recorded,
-            'frames_dropped': self.frames_dropped,
-            'drop_rate': self.frames_dropped / max(self.frames_recorded + self.frames_dropped, 1),
-            'total_sessions': len(self.recording_sessions),
-            'current_session': {
-                'session_id': self.current_session.session_id if self.current_session else None,
-                'duration': (
+            "camera_id": self.config.camera_id,
+            "state": self.state.value,
+            "frames_recorded": self.frames_recorded,
+            "frames_dropped": self.frames_dropped,
+            "drop_rate": self.frames_dropped
+            / max(self.frames_recorded + self.frames_dropped, 1),
+            "total_sessions": len(self.recording_sessions),
+            "current_session": {
+                "session_id": self.current_session.session_id
+                if self.current_session
+                else None,
+                "duration": (
                     (datetime.now() - self.current_session.start_time).total_seconds()
-                    if self.current_session else 0
+                    if self.current_session
+                    else 0
                 ),
-                'frames': self.current_session.frame_count if self.current_session else 0
-            } if self.current_session else None
+                "frames": self.current_session.frame_count
+                if self.current_session
+                else 0,
+            }
+            if self.current_session
+            else None,
         }
 
 
@@ -580,15 +651,15 @@ class RecordingManager:
         self.logger = get_logger("recording_manager")
 
         # Storage configuration
-        self.output_dir = Path(config.get('output_dir', '/var/lib/zoomcam/recordings'))
-        self.cleanup_days = config.get('cleanup_days', 7)
-        self.max_storage_gb = config.get('max_storage_gb', 100)
+        self.output_dir = Path(config.get("output_dir", "/var/lib/zoomcam/recordings"))
+        self.cleanup_days = config.get("cleanup_days", 7)
+        self.max_storage_gb = config.get("max_storage_gb", 100)
 
         # Camera recorders
         self.recorders: Dict[str, CameraRecorder] = {}
 
         # Global recording state
-        self.global_recording_enabled = config.get('enabled', True)
+        self.global_recording_enabled = config.get("enabled", True)
         self.storage_monitoring_enabled = True
 
         # Background tasks
@@ -612,7 +683,7 @@ class RecordingManager:
         today = datetime.now()
         for days_offset in range(7):  # Pre-create directories for next week
             date = today + timedelta(days=days_offset)
-            date_dir = self.output_dir / date.strftime('%Y-%m-%d')
+            date_dir = self.output_dir / date.strftime("%Y-%m-%d")
             ensure_directory(date_dir)
 
     async def start_recording_manager(self):
@@ -641,23 +712,29 @@ class RecordingManager:
 
         self.logger.info("Recording manager stopped")
 
-    async def setup_camera_recorder(self, camera_id: str, camera_config: Dict[str, Any]):
+    async def setup_camera_recorder(
+        self, camera_id: str, camera_config: Dict[str, Any]
+    ):
         """Setup recorder for a camera."""
         try:
             # Create recorder config
-            recording_config = camera_config.get('recording', {})
+            recording_config = camera_config.get("recording", {})
 
             recorder_config = RecorderConfig(
                 camera_id=camera_id,
-                enabled=recording_config.get('enabled', True),
-                quality=RecordingQuality[recording_config.get('quality', 'MEDIUM').upper()],
-                reaction_time=recording_config.get('reaction_time', 0.5),
-                max_duration=recording_config.get('max_duration', 300),
-                post_motion_duration=recording_config.get('post_motion_duration', 5),
-                min_duration=recording_config.get('min_duration', 3),
-                motion_threshold=recording_config.get('motion_threshold', 0.1),
-                fps=camera_config.get('fps', 30),
-                resolution=self._parse_resolution(camera_config.get('resolution', 'auto'))
+                enabled=recording_config.get("enabled", True),
+                quality=RecordingQuality[
+                    recording_config.get("quality", "MEDIUM").upper()
+                ],
+                reaction_time=recording_config.get("reaction_time", 0.5),
+                max_duration=recording_config.get("max_duration", 300),
+                post_motion_duration=recording_config.get("post_motion_duration", 5),
+                min_duration=recording_config.get("min_duration", 3),
+                motion_threshold=recording_config.get("motion_threshold", 0.1),
+                fps=camera_config.get("fps", 30),
+                resolution=self._parse_resolution(
+                    camera_config.get("resolution", "auto")
+                ),
             )
 
             # Create output directory for camera
@@ -684,24 +761,31 @@ class RecordingManager:
 
     def _parse_resolution(self, resolution_str: str) -> Optional[Tuple[int, int]]:
         """Parse resolution string."""
-        if resolution_str == 'auto' or not resolution_str:
+        if resolution_str == "auto" or not resolution_str:
             return None
 
         try:
-            if 'x' in resolution_str:
-                width, height = resolution_str.split('x')
+            if "x" in resolution_str:
+                width, height = resolution_str.split("x")
                 return (int(width), int(height))
         except Exception:
             pass
 
         return None
 
-    async def process_camera_frame(self, camera_id: str, frame: np.ndarray, motion_data: Optional[Dict[str, Any]] = None):
+    async def process_camera_frame(
+        self,
+        camera_id: str,
+        frame: np.ndarray,
+        motion_data: Optional[Dict[str, Any]] = None,
+    ):
         """Process frame from camera for recording."""
         if camera_id in self.recorders:
             await self.recorders[camera_id].process_frame(frame, motion_data)
 
-    async def start_manual_recording(self, camera_id: str, duration: Optional[int] = None) -> str:
+    async def start_manual_recording(
+        self, camera_id: str, duration: Optional[int] = None
+    ) -> str:
         """Start manual recording for camera."""
         if camera_id not in self.recorders:
             raise ValueError(f"No recorder found for camera {camera_id}")
@@ -756,9 +840,7 @@ class RecordingManager:
             cutoff_time = datetime.now() - timedelta(days=self.cleanup_days)
 
             deleted_files = cleanup_old_files(
-                self.output_dir,
-                max_age_days=self.cleanup_days,
-                pattern="*.mp4"
+                self.output_dir, max_age_days=self.cleanup_days, pattern="*.mp4"
             )
 
             if deleted_files:
@@ -796,4 +878,14 @@ class RecordingManager:
 
             if usage_gb > self.max_storage_gb:
                 self.logger.warning(
-                    f"Storage usage ({usage_gb:.
+                    f"Storage usage ({usage_gb:.1f}GB) exceeds maximum ({self.max_storage_gb}GB), cleaning up..."
+                )
+                # Trigger cleanup of old recordings
+                await self._cleanup_old_recordings()
+        except Exception as e:
+            self.logger.error(f"Error checking storage usage: {e}")
+        finally:
+            # Schedule next check in 1 hour
+            asyncio.get_event_loop().call_later(
+                3600, lambda: asyncio.create_task(self._check_storage_usage())
+            )

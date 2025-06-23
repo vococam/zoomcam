@@ -6,20 +6,19 @@ Advanced logging configuration with structured logging,
 performance monitoring, and multi-destination output.
 """
 
+import json
 import logging
 import logging.handlers
-import json
-import time
-import sys
-import os
-from pathlib import Path
-from datetime import datetime, timedelta
-from typing import Dict, Any, Optional, List, Union
-from dataclasses import dataclass, asdict
-import threading
 import queue
+import sys
+import threading
+import time
 import traceback
 from contextlib import contextmanager
+from dataclasses import asdict, dataclass
+from datetime import datetime, timedelta
+from pathlib import Path
+from typing import Any, Dict, List, Optional, Union
 
 try:
     import psutil
@@ -120,7 +119,7 @@ class ZoomCamFormatter(logging.Formatter):
                 return self._format_json(record_copy)
             else:
                 return super().format(record_copy)
-        except Exception as e:
+        except Exception:
             # Fallback to basic formatting if our custom formatting fails
             return f"{record.levelname}: {record.msg}"
 
@@ -405,7 +404,7 @@ class ZoomCamLogger:
 
         try:
             yield operation_logger
-        except Exception as e:
+        except Exception:
             operation_logger.error(f"Operation failed: {operation_name}", exc_info=True)
             raise
         finally:

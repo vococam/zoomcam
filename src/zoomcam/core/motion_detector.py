@@ -7,12 +7,13 @@ and provides activity metrics for layout optimization.
 """
 
 import logging
-import cv2
-import numpy as np
-from typing import Dict, List, Tuple, Any, Optional
+import threading
 from dataclasses import dataclass
 from datetime import datetime, timedelta
-import threading
+from typing import Any, Dict, List, Tuple
+
+import cv2
+import numpy as np
 
 from zoomcam.utils.exceptions import MotionDetectionError
 

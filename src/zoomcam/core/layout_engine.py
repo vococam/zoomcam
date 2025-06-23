@@ -8,10 +8,9 @@ motion detection, and screen real estate optimization.
 
 import logging
 import math
-from typing import Dict, List, Tuple, Any, Optional
 from dataclasses import dataclass
 from datetime import datetime, timedelta
-import asyncio
+from typing import Any, Dict, List, Optional, Tuple
 
 from zoomcam.utils.exceptions import LayoutError
 
@@ -445,7 +444,7 @@ class LayoutEngine:
             display: grid;
             grid-template-columns: {grid_columns};
             grid-template-rows: {grid_rows};
-            grid-template-areas: 
+            grid-template-areas:
                 {grid_areas};
             gap: {self.gap_size}px;
             width: 100vw;
@@ -510,7 +509,7 @@ class LayoutEngine:
             box-sizing: border-box;
             overflow: auto;
         }}
-        
+
         .camera-fragment {{
             position: relative;
             border-radius: 4px;
@@ -519,22 +518,22 @@ class LayoutEngine:
             background: #1a1a1a;
             border: {self.border_width}px solid #333;
         }}
-        
+
         .camera-fragment.high-activity {{
             border-color: #4caf50;
             box-shadow: 0 0 10px rgba(76, 175, 80, 0.5);
         }}
-        
+
         .camera-fragment.medium-activity {{
             border-color: #ff9800;
         }}
-        
+
         .camera-fragment:hover {{
             transform: scale(1.02);
             z-index: 10;
             box-shadow: 0 0 15px rgba(255, 255, 255, 0.3);
         }}
-        
+
         .camera-fragment .camera-label {{
             position: absolute;
             bottom: 0;
@@ -548,14 +547,14 @@ class LayoutEngine:
             overflow: hidden;
             text-overflow: ellipsis;
         }}
-        
+
         @media (max-width: 768px) {{
             .zoomcam-grid {{
                 grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
                 grid-auto-rows: minmax(150px, 1fr);
             }}
         }}
-        
+
         @media (max-width: 480px) {{
             .zoomcam-grid {{
                 grid-template-columns: 1fr;
@@ -590,7 +589,7 @@ class LayoutEngine:
             width: 100%;
             height: 100%;
         }}
-        
+
         .{area_class} .camera-fragment.{activity_class} {{
             border-color: {'#4caf50' if activity_class == 'high-activity' else '#ff9800' if activity_class == 'medium-activity' else '#333'};
         }}

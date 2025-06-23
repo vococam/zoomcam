@@ -1,4 +1,4 @@
-version: '3.8'
+version: "3.8"
 
 services:
   # ==================================================
@@ -14,7 +14,7 @@ services:
 
     # Port mapping
     ports:
-      - "8000:8000"    # Web interface
+      - "8000:8000" # Web interface
 
     # Environment variables
     environment:
@@ -55,7 +55,7 @@ services:
     deploy:
       resources:
         limits:
-          cpus: '2.0'
+          cpus: "2.0"
           memory: 1G
         reservations:
           memory: 256M
@@ -93,7 +93,9 @@ services:
     restart: unless-stopped
 
     # Configuration
-    command: redis-server --appendonly yes --maxmemory 256mb --maxmemory-policy allkeys-lru
+    command:
+      redis-server --appendonly yes --maxmemory 256mb --maxmemory-policy
+      allkeys-lru
 
     # Volumes
     volumes:
@@ -141,7 +143,15 @@ services:
 
     # Health check
     healthcheck:
-      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost/health"]
+      test:
+        [
+          "CMD",
+          "wget",
+          "--quiet",
+          "--tries=1",
+          "--spider",
+          "http://localhost/health",
+        ]
       interval: 30s
       timeout: 5s
       retries: 3

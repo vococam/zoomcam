@@ -6,19 +6,17 @@ Advanced performance monitoring, profiling, and optimization
 tools for ZoomCam system components.
 """
 
-import asyncio
-import threading
-import time
 import functools
 import gc
-import resource
-import tracemalloc
-from datetime import datetime, timedelta
-from typing import Dict, Any, List, Optional, Callable, Tuple, Union
-from dataclasses import dataclass, field
-from collections import deque, defaultdict
-from contextlib import contextmanager
 import logging
+import threading
+import time
+import tracemalloc
+from collections import deque
+from contextlib import contextmanager
+from dataclasses import dataclass, field
+from datetime import datetime, timedelta
+from typing import Any, Dict, List, Optional, Tuple
 
 try:
     import psutil
@@ -597,7 +595,7 @@ def monitor_performance(
             try:
                 result = func(*args, **kwargs)
                 return result
-            except Exception as e:
+            except Exception:
                 success = False
                 raise
             finally:
@@ -626,7 +624,7 @@ def async_monitor_performance(
             try:
                 result = await func(*args, **kwargs)
                 return result
-            except Exception as e:
+            except Exception:
                 success = False
                 raise
             finally:

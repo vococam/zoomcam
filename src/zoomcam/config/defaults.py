@@ -5,9 +5,10 @@ Default Configuration Generator
 Creates default configuration files for ZoomCam system.
 """
 
-import yaml
 from pathlib import Path
-from typing import Dict, Any
+from typing import Any, Dict
+
+import yaml
 
 
 def get_default_user_config() -> Dict[str, Any]:
@@ -215,7 +216,7 @@ def get_default_css_layouts() -> Dict[str, Any]:
                            grid-template-rows 0.8s ease-in-out,
                            grid-template-areas 0.8s ease-in-out;
             }
-            
+
             .camera-fragment {
                 transition: all 0.5s ease-in-out;
             }

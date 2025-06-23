@@ -1,3 +1,5 @@
+version: "3.8"
+
 services:
   # ==================================================
   # ZoomCam Main Application
@@ -9,25 +11,41 @@ services:
       target: production
     container_name: zoomcam-app
     restart: unless-stopped
+    hostname: zoomcam
 
     # Port mapping
     ports:
-      - "8000:8000"    # Web interface
+      - "${APP_PORT:-5000}:${APP_PORT:-5000}" # Web interface
+      - "${RTMP_PORT:-1935}:1935" # RTMP (for HLS streaming)
+      - "${WEBRTC_PORT:-8080}:8080" # WebRTC (if needed)
 
     # Environment variables
+    env_file:
+      - .env
     environment:
-      - ZOOMCAM_ENV=production
+      - ZOOMCAM_ENV=${ZOOMCAM_ENV:-development}
       - PYTHONUNBUFFERED=1
-      - TZ=Europe/Warsaw
+      - TZ=${TZ:-Europe/Warsaw}
+      - PORT=${APP_PORT:-5000}
+      - REDIS_URL=redis://${REDIS_HOST:-redis}:${REDIS_PORT:-6379}/0
+      - DATA_DIR=${DATA_DIR:-/data}
+      - LOG_DIR=${LOG_DIR:-/app/logs}
+      - RECORDINGS_DIR=${RECORDINGS_DIR:-/recordings}
+      - TEMP_DIR=${TEMP_DIR:-/tmp}
+      - HLS_OUTPUT_DIR=${HLS_OUTPUT_DIR:-/tmp/zoomcam_hls}
+      - MAX_UPLOAD_SIZE=${MAX_UPLOAD_SIZE:-104857600}
+      - ALLOWED_EXTENSIONS=${ALLOWED_EXTENSIONS:-mp4,avi,mov,jpg,jpeg,png}
 
     # Volume mounts
     volumes:
       # Configuration
       - ./config:/app/config:ro
+      # Application code (for development)
+      - .:/app:delegated
       # Persistent data
-      - zoomcam-data:/var/lib/zoomcam
+      - zoomcam-data:/data
       - zoomcam-logs:/app/logs
-      - zoomcam-recordings:/app/recordings
+      - zoomcam-recordings:/recordings
       # HLS streaming (tmpfs for performance)
       - type: tmpfs
         target: /tmp/zoomcam_hls
@@ -46,21 +64,30 @@ services:
       - /dev/video2:/dev/video2
       - /dev/video3:/dev/video3
 
-    # Privileged mode for camera access
-    privileged: false
+    # Security options
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    cap_add:
+      - CHOWN
+      - DAC_OVERRIDE
+      - FOWNER
+      - SETGID
+      - SETUID
 
     # Resource limits
     deploy:
       resources:
         limits:
-          cpus: '2.0'
-          memory: 1G
+          cpus: "2.0"
+          memory: 2G
         reservations:
-          memory: 256M
+          memory: 512M
 
     # Health check
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8000/api/system/status"]
+      test: ["CMD", "curl", "-f", "http://localhost:5000/api/system/status"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -72,6 +99,7 @@ services:
       options:
         max-size: "100m"
         max-file: "3"
+        compress: "true"
 
     # Network
     networks:
@@ -79,37 +107,62 @@ services:
 
     # Dependencies
     depends_on:
-      - redis
+      redis:
+        condition: service_healthy
 
   # ==================================================
   # Redis for caching and session storage
   # ==================================================
   redis:
     image: redis:7-alpine
-    container_name: zoomcam-redis
+    container_name: ${REDIS_CONTAINER_NAME:-zoomcam-redis}
     restart: unless-stopped
+    hostname: ${REDIS_HOST:-redis}
 
     # Configuration
-    command: redis-server --appendonly yes --maxmemory 256mb --maxmemory-policy allkeys-lru
+    command: >
+      redis-server --bind 0.0.0.0 --port ${REDIS_PORT:-6379} --requirepass
+      ${REDIS_PASSWORD:-} --appendonly ${REDIS_APPENDONLY:-yes} --maxmemory
+      ${REDIS_MAXMEMORY:-256mb} --maxmemory-policy
+      ${REDIS_MAXMEMORY_POLICY:-allkeys-lru} --save ${REDIS_SAVE:-60 1}
+      --stop-writes-on-bgsave-error ${REDIS_STOP_WRITES_ON_BGSAVE_ERROR:-no}
+      --loglevel ${REDIS_LOGLEVEL:-warning}
+
+    # Environment variables
+    environment:
+      - TZ=${TZ:-Europe/Warsaw}
+      - REDIS_PASSWORD=${REDIS_PASSWORD:-}
+      - REDIS_DISABLE_COMMANDS=FLUSHDB,FLUSHALL,CONFIG,KEYS,SHUTDOWN
 
     # Volumes
     volumes:
-      - redis-data:/data
+      - ${REDIS_DATA_VOLUME:-redis-data}:/data
+      - ${REDIS_CONFIG_PATH:-./config/redis/redis.conf}:/usr/local/etc/redis/redis.conf:ro
 
     # Resource limits
     deploy:
       resources:
         limits:
-          memory: 256M
+          cpus: "${REDIS_CPUS:-1.0}"
+          memory: ${REDIS_MEMORY_LIMIT:-512M}
         reservations:
-          memory: 64M
+          memory: ${REDIS_MEMORY_RESERVATION:-128M}
 
     # Health check
     healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
-      interval: 30s
+      test: ["CMD-SHELL", "redis-cli ping | grep -q PONG"]
+      interval: 10s
       timeout: 5s
-      retries: 3
+      retries: 5
+      start_period: 30s
+
+    # Logging
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "50m"
+        max-file: "3"
+        compress: "true"
 
     # Network
     networks:
@@ -138,7 +191,15 @@ services:
 
     # Health check
     healthcheck:
-      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost/health"]
+      test:
+        [
+          "CMD",
+          "wget",
+          "--quiet",
+          "--tries=1",
+          "--spider",
+          "http://localhost/health",
+        ]
       interval: 30s
       timeout: 5s
       retries: 3
@@ -152,36 +213,35 @@ services:
       - zoomcam
 
 # ==================================================
-# Named Volumes
+# Volumes for persistent data
 # ==================================================
 volumes:
   zoomcam-data:
+    name: ${DATA_VOLUME:-zoomcam-data}
     driver: local
     driver_opts:
       type: none
-      o: bind
-      device: ./data
-
+      device: ${DATA_DEVICE:-./data}
   zoomcam-logs:
+    name: ${LOGS_VOLUME:-zoomcam-logs}
     driver: local
     driver_opts:
       type: none
-      o: bind
-      device: ./logs
-
+      device: ${LOGS_DEVICE:-./logs}
   zoomcam-recordings:
+    name: ${RECORDINGS_VOLUME:-zoomcam-recordings}
     driver: local
     driver_opts:
       type: none
-      o: bind
-      device: ./recordings
-
+      device: ${RECORDINGS_DEVICE:-./recordings}
   redis-data:
+    name: ${REDIS_DATA_VOLUME:-redis-data}
     driver: local
-
+    driver_opts:
+      type: none
+      device: ${REDIS_DATA_DEVICE:-./redis-data}
   influxdb-data:
     driver: local
-
   influxdb-config:
     driver: local
 

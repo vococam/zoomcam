@@ -8,14 +8,14 @@ adjust configuration parameters for optimal performance.
 
 import asyncio
 import logging
-import yaml
-import psutil
-import time
+import statistics
+from dataclasses import asdict, dataclass
 from datetime import datetime, timedelta
 from pathlib import Path
-from typing import Dict, List, Any, Optional, Tuple
-from dataclasses import dataclass, asdict
-import statistics
+from typing import Any, Dict, List, Optional, Tuple
+
+import psutil
+import yaml
 
 from zoomcam.config.config_manager import ConfigManager
 from zoomcam.core.git_logger import GitLogger

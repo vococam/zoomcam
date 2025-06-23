@@ -7,10 +7,10 @@ detailed error information, recovery suggestions, and logging integration.
 """
 
 import traceback
-from typing import Dict, Any, Optional, List, Union
 from dataclasses import dataclass
 from datetime import datetime
 from enum import Enum
+from typing import Any, Dict, List, Optional
 
 
 class ErrorSeverity(Enum):
@@ -117,11 +117,11 @@ class ZoomCamError(Exception):
         if self.severity == ErrorSeverity.CRITICAL:
             return f"Critical system error occurred. Please contact support. (Error: {self.error_code})"
         elif self.severity == ErrorSeverity.HIGH:
-            return f"An important component has encountered an error. System may be unstable."
+            return "An important component has encountered an error. System may be unstable."
         elif self.severity == ErrorSeverity.MEDIUM:
-            return f"A component error occurred. Some features may not work properly."
+            return "A component error occurred. Some features may not work properly."
         else:
-            return f"Minor issue detected. System should continue working normally."
+            return "Minor issue detected. System should continue working normally."
 
     def _add_automatic_suggestions(self):
         """Add automatic recovery suggestions based on error type."""
@@ -189,7 +189,7 @@ class ZoomCamError(Exception):
                 s.description for s in self.recovery_suggestions if s.priority == 1
             ]
             if suggestions:
-                message += f"\n\nSuggested actions:\n" + "\n".join(
+                message += "\n\nSuggested actions:\n" + "\n".join(
                     f"• {s}" for s in suggestions[:3]
                 )
 
@@ -942,7 +942,7 @@ if __name__ == "__main__":
         print(f"Code: {e.error_code}")
         print(f"Message: {e.user_message}")
         print(f"Severity: {e.severity.value}")
-        print(f"Recovery suggestions:")
+        print("Recovery suggestions:")
         for suggestion in e.recovery_suggestions:
             print(f"  - {suggestion.description}")
 

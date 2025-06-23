@@ -1,21 +1,21 @@
 # config/logging.yaml (uproszczone)
 logging:
   method: "git_timeline"
-  
+
   git:
     repository_path: "/var/lib/zoomcam/history"
     auto_commit: true
     commit_on:
       - "layout_change"
-      - "motion_detected" 
+      - "motion_detected"
       - "config_change"
-    
+
   screenshots:
     enabled: true
     on_events: ["layout_change", "motion_detected"]
     quality: 80
-    
+
   web_timeline:
     enabled: true
     items_per_page: 50
-    auto_refresh: 5  # sekund
+    auto_refresh: 5 # sekund

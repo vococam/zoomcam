@@ -8,16 +8,16 @@ make_request() {
     local method=$1
     local endpoint=$2
     local data=${3:-""}
-    
+
     echo -e "\n=== Testing $method $endpoint ==="
-    
+
     if [ -z "$data" ]; then
         curl -X $method -s -o /dev/null -w "Status: %{http_code}" "$BASE_URL$endpoint"
     else
         echo "Request data: $data"
         curl -X $method -s -o /dev/null -w "Status: %{http_code}" -H "Content-Type: application/json" -d "$data" "$BASE_URL$endpoint"
     fi
-    
+
     echo -e "\n"
 }
 

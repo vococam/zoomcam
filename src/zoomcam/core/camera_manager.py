@@ -8,18 +8,19 @@ Handles USB cameras, RTSP streams, and resolution detection.
 
 import asyncio
 import logging
+import threading
 import time
-import cv2
-import numpy as np
-from typing import Dict, List, Optional, Tuple, Any
+from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
 from datetime import datetime
-import threading
-from concurrent.futures import ThreadPoolExecutor
+from typing import Any, Dict, List, Optional, Tuple
 
-from zoomcam.core.motion_detector import MotionDetector
+import cv2
+import numpy as np
+
 from zoomcam.core.interpolation_engine import InterpolationEngine
-from zoomcam.utils.exceptions import CameraError, ZoomCamError
+from zoomcam.core.motion_detector import MotionDetector
+from zoomcam.utils.exceptions import CameraError
 
 
 @dataclass

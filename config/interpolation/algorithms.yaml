@@ -2,17 +2,17 @@
 interpolation:
   global_settings:
     default_algorithm: "lanczos"
-    quality_vs_performance: 0.7  # 0=performance, 1=quality
+    quality_vs_performance: 0.7 # 0=performance, 1=quality
 
   per_camera_override:
     camera_1:
-      upscale_algorithm: "cubic"      # gdy źródło < target
-      downscale_algorithm: "lanczos"  # gdy źródło > target
-      sharpening: 0.2                 # 0-1, dodatkowe wyostrzenie
+      upscale_algorithm: "cubic" # gdy źródło < target
+      downscale_algorithm: "lanczos" # gdy źródło > target
+      sharpening: 0.2 # 0-1, dodatkowe wyostrzenie
 
   adaptive_quality:
     enabled: true
-    cpu_threshold: 80  # przełącz na szybszy algorytm przy high CPU
+    cpu_threshold: 80 # przełącz na szybszy algorytm przy high CPU
     fallback_algorithm: "linear"
 
   resolution_mapping:

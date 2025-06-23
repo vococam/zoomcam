@@ -7,10 +7,8 @@ with detailed error reporting and suggestions.
 """
 
 import re
-from typing import Dict, Any, List, Optional, Union, Tuple
 from dataclasses import dataclass
-from pathlib import Path
-import ipaddress
+from typing import Any, Dict, List, Optional, Tuple
 
 
 @dataclass
@@ -370,7 +368,7 @@ class ConfigValidator:
             if width <= 0 or height <= 0:
                 raise ValueError("Dimensions must be positive")
             return width, height
-        except (ValueError, AttributeError) as e:
+        except (ValueError, AttributeError):
             raise ValueError(
                 f"Invalid resolution format: {resolution}. Expected WxH (e.g., 1920x1080)"
             )
