@@ -1,0 +1,67 @@
+---
+- name: Test ZoomCam API
+  hosts: localhost
+  connection: local
+  gather_facts: false
+
+  vars:
+    base_url: "http://localhost:5000"
+
+  tasks:
+    - name: Test basic endpoints
+      uri:
+        url: "{{ base_url }}{{ item }}"
+        method: GET
+        status_code: 200
+        return_content: yes
+        validate_certs: no
+      loop:
+        - /
+        - /setup
+        - /config
+        - /timeline
+        - /monitor
+      register: basic_tests
+      ignore_errors: yes
+
+    - name: Test API endpoints
+      uri:
+        url: "{{ base_url }}{{ item }}"
+        method: GET
+        status_code: 200
+        return_content: yes
+        validate_certs: no
+      loop:
+        - /api/cameras
+        - /api/stream/url
+        - /api/stream/stats
+        - /api/layout/current
+        - /api/config
+        - /api/system/status
+        - /api/system/performance
+        - /api/timeline/events
+        - /api/events
+      register: api_tests
+      ignore_errors: yes
+
+    - name: Test POST endpoints
+      uri:
+        url: "{{ base_url }}{{ item.url }}"
+        method: POST
+        body_format: json
+        body: {}
+        status_code: 200
+        return_content: yes
+        validate_certs: no
+      loop:
+        - { url: "/api/setup/detect-cameras" }
+        - { url: "/api/layout/recalculate" }
+      register: post_tests
+      ignore_errors: yes
+
+    - name: Display test results
+      debug:
+        msg: |
+          Basic endpoints test: {{ basic_tests is success }}
+          API endpoints test: {{ api_tests is success }}
+          POST endpoints test: {{ post_tests is success }}

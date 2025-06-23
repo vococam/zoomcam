@@ -267,7 +267,7 @@ class ZoomCamApplication:
 async def run_server(
     app: ZoomCamApplication,
     host: str = "0.0.0.0",
-    port: int = 8000,
+    port: int = 5000,  # Changed from 8080 to 5000 to avoid conflicts
     debug: bool = False,
 ) -> None:
     """Run the web server."""
@@ -300,7 +300,7 @@ async def run_server(
 async def async_main(
     config_path: Optional[str] = None,
     host: str = "0.0.0.0",
-    port: int = 8000,
+    port: int = 5000,  # Changed from 8080 to 5000 to avoid conflicts
     debug: bool = False,
 ) -> None:
     """Main async entry point."""
@@ -386,7 +386,7 @@ def main() -> None:
         help="Path to configuration file",
     )
     parser.add_argument("--host", type=str, default="0.0.0.0", help="Host to bind to")
-    parser.add_argument("--port", "-p", type=int, default=8000, help="Port to bind to")
+    parser.add_argument("--port", "-p", type=int, default=5000, help="Port to bind to (default: 5000)")
     parser.add_argument("--debug", "-d", action="store_true", help="Enable debug mode")
     parser.add_argument(
         "--test-config", action="store_true", help="Test configuration and exit"

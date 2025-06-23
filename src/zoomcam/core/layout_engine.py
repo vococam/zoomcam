@@ -486,6 +486,118 @@ class LayoutEngine:
 
         return css
 
+    def _generate_adaptive_flow_css(
+        self,
+        grid_columns: str,
+        grid_rows: str,
+        grid_areas: str,
+        cells: List[LayoutCell],
+    ) -> str:
+        """Generate CSS for adaptive flow layout.
+        
+        This layout uses CSS Grid with auto-flow to create a responsive
+        layout that adapts to the available space and fragment sizes.
+        """
+        css = f"""
+        .zoomcam-grid {{
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            grid-auto-rows: minmax(200px, 1fr);
+            gap: {self.gap_size}px;
+            width: 100vw;
+            height: 100vh;
+            padding: 10px;
+            box-sizing: border-box;
+            overflow: auto;
+        }}
+        
+        .camera-fragment {{
+            position: relative;
+            border-radius: 4px;
+            overflow: hidden;
+            transition: all 0.3s ease;
+            background: #1a1a1a;
+            border: {self.border_width}px solid #333;
+        }}
+        
+        .camera-fragment.high-activity {{
+            border-color: #4caf50;
+            box-shadow: 0 0 10px rgba(76, 175, 80, 0.5);
+        }}
+        
+        .camera-fragment.medium-activity {{
+            border-color: #ff9800;
+        }}
+        
+        .camera-fragment:hover {{
+            transform: scale(1.02);
+            z-index: 10;
+            box-shadow: 0 0 15px rgba(255, 255, 255, 0.3);
+        }}
+        
+        .camera-fragment .camera-label {{
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: rgba(0, 0, 0, 0.7);
+            color: white;
+            padding: 5px 10px;
+            font-size: 12px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }}
+        
+        @media (max-width: 768px) {{
+            .zoomcam-grid {{
+                grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+                grid-auto-rows: minmax(150px, 1fr);
+            }}
+        }}
+        
+        @media (max-width: 480px) {{
+            .zoomcam-grid {{
+                grid-template-columns: 1fr;
+                grid-auto-rows: minmax(120px, 1fr);
+            }}
+        }}
+        """
+        
+        # Add dynamic styles for each cell based on activity
+        for cell in cells:
+            if cell.camera_fragment:
+                fragment = cell.camera_fragment
+                area_class = f"area_{fragment.camera_id}_{fragment.fragment_id}"
+                
+                # Determine activity class
+                if fragment.activity_level > 0.5:
+                    activity_class = "high-activity"
+                elif fragment.activity_level > 0.1:
+                    activity_class = "medium-activity"
+                else:
+                    activity_class = ""
+                
+                css += f"""
+        .{area_class} {{
+            grid-area: {cell.css_grid_area};
+        }}
+        """
+                
+                # Add a style for the camera fragment content
+                css += f"""
+        .{area_class} .camera-fragment {{
+            width: 100%;
+            height: 100%;
+        }}
+        
+        .{area_class} .camera-fragment.{activity_class} {{
+            border-color: {'#4caf50' if activity_class == 'high-activity' else '#ff9800' if activity_class == 'medium-activity' else '#333'};
+        }}
+        """
+        
+        return css
+
     def _generate_equal_grid_css(
         self,
         grid_columns: str,
