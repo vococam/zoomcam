@@ -498,10 +498,7 @@ class CameraRecorder:
                 except Exception as e:
                     self.logger.error(f"Error in session callback: {e}")
 
-            self.logger.info(
-                "Recording stopped: %s",
-                self.current_session.session_id
-            )
+            self.logger.info("Recording stopped: %s", self.current_session.session_id)
             self.current_session = None
             self.state = RecordingState.WAITING
 
@@ -780,8 +777,10 @@ class RecordingManager:
                 self.total_storage_used += session.file_size_bytes
 
             self.logger.info(
-                f"Recording session completed: {session.session_id} "
-                f"({session.duration_seconds:.1f}s, {format_bytes(session.file_size_bytes)})"
+                "Recording session completed: %s (%.1fs, %s)",
+                session.session_id,
+                session.duration_seconds,
+                format_bytes(session.file_size_bytes),
             )
 
         except Exception as e:
@@ -1059,7 +1058,7 @@ class RecordingManager:
             return export_path
 
         except Exception as e:
-            self.logger.error(f"Error exporting recording {session_id}: {e}")
+            self.logger.error("Error exporting recording %s: %s", session_id, e)
             return None
 
     async def _convert_recording(
